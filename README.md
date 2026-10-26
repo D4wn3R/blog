@@ -7,7 +7,7 @@ Go (Gin + GORM) 后端 + React 19 前端 + MySQL / Redis / RustFS，五容器 Do
 前置要求：Docker（含 Compose v2）、Git、openssl。
 
 ```bash
-git clone https://github.com/man-mu/blog.git
+git clone https://github.com/D4wn3R/blog.git
 cd blog
 
 # 1. 中间件凭证（MySQL / Redis / RustFS 强随机密码）
@@ -40,6 +40,31 @@ docker compose up -d --build
 > - 仅支持 GitHub 登录：未配置 GitHub OAuth（BLOG_OAUTH_GITHUB_CLIENT_ID）时后端拒绝启动。
 > - 生产部署：`BLOG_SERVER_MODE=release`，并把域名相关变量指向真实站点
 >   （BLOG_OAUTH_BASE_URL / BLOG_OAUTH_GITHUB_REDIRECT_URL）；宿主 nginx 将域名反代到容器的 `127.0.0.1:8081` 即可。
+
+## 开发与贡献
+
+开发请走分支 + PR 流程，**不要直接向 `main` 推送**：
+
+```bash
+# 1. 从最新 main 开功能分支
+git switch -c feat/your-feature origin/main
+
+# 2. 正常提交（Conventional Commits：feat/fix/docs/refactor/test/chore/ci）
+git commit -m "feat(editor): 支持粘贴图片自动上传"
+
+# 3. 推送并开 PR
+git push -u origin feat/your-feature
+gh pr create --base main
+
+# 4. 通过 rebase 合并，保持线性历史
+gh pr merge --rebase --delete-branch
+```
+
+约定：
+
+- 合并方式统一用 **Rebase merge**（不用 squash / merge commit），保持提交粒度可追溯
+- 提交前本地自查：后端 `gofmt -l .`、`goimports -l .`、`go vet ./...`、`go test ./...`；前端 `npm run lint`、`npx tsc -b`、`npm test`、`npm run build`
+- 凭证类文件（`.env`、`backend/.env`）永不入库；新增配置项请同步更新对应的 `.env.example`
 
 ## License
 
