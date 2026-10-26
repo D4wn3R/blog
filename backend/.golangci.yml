@@ -1,0 +1,19 @@
+version: "2"
+
+# 强制基线：errcheck/staticcheck/govet/revive/ineffassign 必过，
+# 格式化 gofumpt + goimports（本模块导入放第三组）
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - revive
+    - staticcheck
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes: github.com/man-mu/blog/backend

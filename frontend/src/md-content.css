@@ -1,0 +1,284 @@
+/* ---------- Markdown 内容区：Cyber 主题（已定稿） ---------- */
+
+/* highlight.js 暗色配色（scoped 到 .md-cyber） */
+.md-cyber .hljs-keyword,
+.md-cyber .hljs-selector-tag,
+.md-cyber .hljs-meta {
+  color: #ff7edb;
+}
+.md-cyber .hljs-string,
+.md-cyber .hljs-attr,
+.md-cyber .hljs-addition {
+  color: #7ee787;
+}
+.md-cyber .hljs-comment,
+.md-cyber .hljs-quote {
+  color: #525f79;
+  font-style: italic;
+}
+.md-cyber .hljs-number,
+.md-cyber .hljs-literal,
+.md-cyber .hljs-built_in {
+  color: #ffd60a;
+}
+.md-cyber .hljs-function,
+.md-cyber .hljs-title,
+.md-cyber .hljs-name {
+  color: #2ee6ff;
+}
+.md-cyber .hljs-deletion {
+  color: #ff2e88;
+}
+
+.md-cyber {
+  line-height: 1.85;
+  color: var(--color-ink);
+  font-size: 15.5px;
+}
+.md-cyber h1,
+.md-cyber h2,
+.md-cyber h3,
+.md-cyber h4,
+.md-cyber h5,
+.md-cyber h6 {
+  color: var(--color-ink);
+  font-weight: 700;
+  margin: 2em 0 0.8em;
+  letter-spacing: 0.01em;
+}
+.md-cyber h1 {
+  font-size: 1.9em;
+  border-bottom: 1px solid var(--color-edge);
+  padding-bottom: 0.4em;
+}
+.md-cyber h2 {
+  font-size: 1.45em;
+  padding-left: 0.6em;
+  border-left: 3px solid var(--color-neon);
+}
+.md-cyber h3 {
+  font-size: 1.2em;
+}
+.md-cyber h4 {
+  font-size: 1.05em;
+}
+.md-cyber h5 {
+  font-size: 0.98em;
+  color: var(--color-dim);
+}
+.md-cyber h6 {
+  font-size: 0.92em;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+}
+.md-cyber h2::before {
+  content: '## ';
+  color: var(--color-neon);
+  font-family: var(--font-mono);
+}
+/* TOC 锚点定位偏移：跳转时避开 sticky 导航 */
+.md-cyber h2[id],
+.md-cyber h3[id] {
+  scroll-margin-top: 5.5rem;
+}
+.md-cyber p {
+  margin: 1.1em 0;
+}
+.md-cyber a {
+  color: var(--color-neon);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(46, 230, 255, 0.5);
+}
+.md-cyber a:hover {
+  border-bottom-style: solid;
+}
+.md-cyber strong {
+  color: var(--color-neon);
+  font-weight: 600;
+}
+.md-cyber em {
+  color: var(--color-ink);
+}
+.md-cyber del {
+  color: var(--color-faint);
+  text-decoration-color: var(--color-pulse);
+}
+.md-cyber mark {
+  background: rgba(255, 214, 10, 0.22);
+  color: var(--color-volt);
+  padding: 0.1em 0.25em;
+}
+.md-cyber blockquote {
+  margin: 1.4em 0;
+  padding: 0.6em 1.2em;
+  border-left: 2px solid var(--color-neon);
+  background: rgba(46, 230, 255, 0.05);
+  color: var(--color-dim);
+}
+.md-cyber blockquote p {
+  margin: 0.3em 0;
+}
+.md-cyber code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  color: var(--color-neon);
+  background: rgba(46, 230, 255, 0.08);
+  border: 1px solid rgba(46, 230, 255, 0.18);
+  padding: 0.15em 0.4em;
+}
+.md-cyber pre {
+  margin: 1.4em 0;
+  padding: 1.1em 1.3em;
+  overflow-x: auto;
+  background: var(--color-void);
+  border: 1px solid var(--color-edge);
+  border-top: 2px solid rgba(46, 230, 255, 0.35);
+}
+.md-cyber pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-ink);
+  font-size: 13px;
+  line-height: 1.75;
+}
+.md-cyber ul,
+.md-cyber ol {
+  margin: 1.1em 0;
+  padding-left: 1.6em;
+}
+.md-cyber ul {
+  list-style: none;
+}
+.md-cyber ul > li::before {
+  content: '▸ ';
+  color: var(--color-neon);
+  font-family: var(--font-mono);
+}
+.md-cyber ol > li::marker {
+  color: var(--color-neon);
+  font-family: var(--font-mono);
+}
+.md-cyber li {
+  margin: 0.45em 0;
+}
+/* 任务列表：方框勾选，贴全站直角语言 */
+.md-cyber .task-list-item {
+  list-style: none;
+}
+.md-cyber .task-list-item::before {
+  content: none;
+}
+.md-cyber .task-list-item input[type='checkbox'] {
+  appearance: none;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 0.5em;
+  vertical-align: -0.05em;
+  border: 1px solid var(--color-neon);
+  background: var(--color-void);
+}
+.md-cyber .task-list-item input[type='checkbox']:checked {
+  background: var(--color-neon);
+  box-shadow: inset 0 0 0 2px var(--color-void);
+}
+.md-cyber .task-list-item label {
+  color: var(--color-dim);
+}
+.md-cyber .task-list-item input[type='checkbox']:checked + label {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-pulse);
+}
+.md-cyber table {
+  width: 100%;
+  margin: 1.4em 0;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+.md-cyber th {
+  text-align: left;
+  color: var(--color-neon);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  border-bottom: 1px solid var(--color-neon);
+  padding: 0.6em 0.9em;
+}
+.md-cyber td {
+  border-bottom: 1px solid var(--color-edge);
+  padding: 0.6em 0.9em;
+  color: var(--color-dim);
+}
+.md-cyber img {
+  max-width: 100%;
+  border: 1px solid var(--color-edge);
+}
+.md-cyber hr {
+  margin: 2.5em 0;
+  border: none;
+  border-top: 1px dashed var(--color-edge);
+}
+/* KaTeX 公式（继承正文色，块级横向滚动兜底） */
+.md-cyber .katex {
+  color: var(--color-ink);
+  font-size: 1.06em;
+}
+.md-cyber .katex-display {
+  margin: 1.4em 0;
+  padding: 0.9em 0.6em;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: rgba(46, 230, 255, 0.04);
+  border: 1px dashed rgba(46, 230, 255, 0.25);
+}
+
+.md-cyber .md-mermaid {
+  margin: 1.4em 0;
+  padding: 1.2em;
+  background: var(--color-void);
+  border: 1px solid var(--color-edge);
+  border-top: 2px solid rgba(46, 230, 255, 0.35);
+  overflow-x: auto;
+}
+.md-cyber .md-mermaid pre {
+  margin: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-dim);
+}
+.md-cyber .md-mermaid svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.md-cyber .footnote-ref a {
+  border-bottom: none;
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+}
+.md-cyber .footnotes {
+  margin-top: 2.5em;
+  border-top: 1px dashed var(--color-edge);
+  font-size: 0.92em;
+}
+.md-cyber .footnotes hr {
+  display: none;
+}
+.md-cyber .footnotes ol.footnotes-list {
+  list-style: decimal;
+  padding-left: 1.6em;
+}
+.md-cyber .footnotes-list li {
+  color: var(--color-dim);
+}
+.md-cyber .footnotes-list li::before {
+  content: none;
+}
+.md-cyber .footnote-backref {
+  border-bottom: none;
+}

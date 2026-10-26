@@ -1,0 +1,40 @@
+server:
+  port: 8080
+  mode: debug
+
+mysql:
+  dsn: "root:123456@tcp(127.0.0.1:3306)/blog?charset=utf8mb4&parseTime=True&loc=Asia%2FShanghai"
+
+redis:
+  addr: "127.0.0.1:6379"
+  password: ""
+  db: 0
+
+rustfs:
+  endpoint: "127.0.0.1:9000"
+  access_key: "rustfsadmin"
+  secret_key: "rustfsadmin"
+  use_ssl: false
+  bucket: "blog"
+
+jwt:
+  secret: "change-me-in-production"
+  access_expire: 30m
+  refresh_expire: 720h
+  unlock_expire: 10m # 加密文章解锁 token 有效期
+
+oauth:
+  base_url: "http://localhost:5173" # 前端地址：OAuth 回调完成后 302 跳回前端
+  github:
+    client_id: ""
+    client_secret: ""
+    redirect_url: "http://localhost:8080/api/oauth/github/callback"
+    ips: [] # github.com 候选连接 IP（生产 env BLOG_OAUTH_GITHUB_IPS 逗号分隔；TLS 干扰时轮换重试）
+
+cors:
+  allowed_origins:
+    - "http://localhost:5173"
+    - "http://127.0.0.1:5173"
+
+admin:
+  github_id: 0 # GitHub 数字用户 ID（curl https://api.github.com/users/<用户名> 取 id）；生产环境用 BLOG_ADMIN_GITHUB_ID 覆盖

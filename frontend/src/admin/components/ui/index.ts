@@ -1,0 +1,10 @@
+// B 端 UI kit 统一出口：页面只从这里导入
+export { Button, LinkButton, type ButtonProps, type ButtonVariant } from './Button'
+export { Input, Textarea, NativeSelect, DateField, fieldBase } from './Input'
+export { Field } from './Field'
+export { Card } from './Card'
+export { PageHeader } from './PageHeader'
+export { Badge } from './Badge'
+export { EmptyState } from './EmptyState'
+export { Table, Row, cell } from './Table'
+export { Pagination } from './Pagination'
