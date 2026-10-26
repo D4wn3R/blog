@@ -8,7 +8,7 @@ type FriendLink struct {
 	Name        string `gorm:"size:50;not null"` // 重名无害
 	URL         string `gorm:"size:255;not null;uniqueIndex:uk_friend_links_url"`
 	Description string `gorm:"column:description;size:200;not null;default:''"`
-	Image       string `gorm:"size:255"`
+	Image       string `gorm:"size:255"` // 友邻站点头像外链 URL（非本站对象存储相对路径）
 	CreatedAt   time.Time
 }
 

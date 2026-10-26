@@ -58,10 +58,12 @@ func (s *FriendLinkService) fields(name, url, description, image string) (*model
 	if utf8.RuneCountInString(description) > 200 {
 		return nil, errBadRequest("简介不能超过 200 个字符")
 	}
+	// 头像为友邻站点外链（与本站对象存储无关）：可空；非空须以 http(s):// 开头，
+	// 仅校验协议前缀不做探活（同 D-friend-url 口径）
 	image = strings.TrimSpace(image)
 	if image != "" {
-		if !strings.HasPrefix(image, "/") {
-			return nil, errBadRequest("头像必须以 / 开头")
+		if !strings.HasPrefix(image, "http://") && !strings.HasPrefix(image, "https://") {
+			return nil, errBadRequest("头像须以 http(s):// 开头")
 		}
 		if utf8.RuneCountInString(image) > 255 {
 			return nil, errBadRequest("头像不能超过 255 个字符")
