@@ -8,6 +8,7 @@ import { useFriendLinks } from '../../lib/queries'
 import { Button, Card, Field, Input, PageHeader } from '../components/ui'
 
 // 友链新增 / 编辑共用表单：#F2 创建、#F3 全量替换编辑（编辑经 #F1 按 id 过滤回显）
+// 头像为友邻站点外链（与本站对象存储无关）：可空，非空须以 http(s):// 开头
 const friendLinkSchema = z.object({
   name: z.string().trim().min(1, '站点名称必填').max(50, '不超过 50 字'),
   url: z
@@ -15,7 +16,10 @@ const friendLinkSchema = z.object({
     .trim()
     .regex(/^https?:\/\//, '站点地址需以 http(s):// 开头'),
   description: z.string().max(200, '不超过 200 字'),
-  image: z.string(),
+  image: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || /^https?:\/\//.test(v), '头像需以 http(s):// 开头'),
 })
 
 type FriendLinkValues = z.infer<typeof friendLinkSchema>
@@ -124,7 +128,11 @@ export function FriendLinkForm() {
         <Field label="站点简介" error={errors.description?.message}>
           <Input {...register('description')} maxLength={200} />
         </Field>
-        <Field label="站长头像" hint="/files/... 相对路径，可空" error={errors.image?.message}>
+        <Field
+          label="站长头像"
+          hint="友邻站点头像外链 URL（http(s):// 开头），可空"
+          error={errors.image?.message}
+        >
           <Input {...register('image')} className="font-mono text-xs" />
         </Field>
         {err && (
