@@ -1,7 +1,7 @@
 package service
 
 // UploadService.Upload 分支单测：transcode/put 注入 fake，无 DB/RustFS 依赖；
-// cwebp 真集成测试在本地或 CI（apt webp）可用时运行，缺失则跳过
+// ffmpeg 真集成测试在本地或 CI（ffmpeg 包）可用时运行，缺失则跳过
 
 import (
 	"bytes"
@@ -17,10 +17,13 @@ import (
 
 // 各格式魔数样本：嗅探分支以真实魔数驱动，不依赖 multipart 头
 var (
-	pngRaw  = append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0}, 32)...)
-	jpegRaw = append([]byte("\xff\xd8\xff\xe0"), bytes.Repeat([]byte{0}, 32)...)
-	gifRaw  = append([]byte("GIF89a"), bytes.Repeat([]byte{0}, 32)...)
-	webpRaw = append([]byte("RIFF\x24\x00\x00\x00WEBPVP8 "), bytes.Repeat([]byte{0}, 32)...)
+	pngRaw    = append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0}, 32)...)
+	jpegRaw   = append([]byte("\xff\xd8\xff\xe0"), bytes.Repeat([]byte{0}, 32)...)
+	gifRaw    = append([]byte("GIF89a"), bytes.Repeat([]byte{0}, 32)...)
+	webpRaw   = append([]byte("RIFF\x24\x00\x00\x00WEBPVP8 "), bytes.Repeat([]byte{0}, 32)...)
+	bmpRaw    = append([]byte("BM\x00\x00\x00\x00"), bytes.Repeat([]byte{0}, 32)...)
+	tiffRaw   = append([]byte("II*\x00\x08\x00\x00\x00"), bytes.Repeat([]byte{0}, 32)...)
+	tiffBERaw = append([]byte("MM\x00\x2a\x00\x00\x00\x08"), bytes.Repeat([]byte{0}, 32)...)
 )
 
 // putCall 记录一次 put 写入
@@ -40,9 +43,9 @@ func asServiceErr(t *testing.T, err error) *Error {
 	return se
 }
 
-func TestUploadJPEGPNGTranscodeToWebP(t *testing.T) {
+func TestUploadTranscodeFormatsToWebP(t *testing.T) {
 	webpOut := append([]byte("RIFF\x00\x00\x00\x00WEBP"), bytes.Repeat([]byte{0xaa}, 16)...)
-	for name, raw := range map[string][]byte{"jpeg": jpegRaw, "png": pngRaw} {
+	for name, raw := range map[string][]byte{"jpeg": jpegRaw, "png": pngRaw, "bmp": bmpRaw, "tiff": tiffRaw} {
 		var transcodeIn []byte
 		transcodeCnt := 0
 		var call putCall
@@ -174,9 +177,32 @@ func TestUploadTranscodeAndPutFailures(t *testing.T) {
 	}
 }
 
-func TestTranscodeCWebPIntegration(t *testing.T) {
-	if _, err := exec.LookPath("cwebp"); err != nil {
-		t.Skip("cwebp 不可用，跳过集成测试（生产/CI 镜像内置 libwebp-tools）")
+func TestSniffImageType(t *testing.T) {
+	tests := []struct {
+		give []byte
+		want string
+	}{
+		{give: jpegRaw, want: "image/jpeg"},
+		{give: pngRaw, want: "image/png"},
+		{give: bmpRaw, want: "image/bmp"},
+		{give: tiffRaw, want: "image/tiff"},
+		{give: tiffBERaw, want: "image/tiff"},
+		{give: webpRaw, want: "image/webp"},
+		{give: gifRaw, want: "image/gif"},
+		{give: []byte("plain text"), want: "text/plain; charset=utf-8"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := sniffImageType(tt.give); got != tt.want {
+				t.Fatalf("sniffImageType(% x) = %q, want %q", tt.give[:8], got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTranscodeFFmpegIntegration(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg 不可用，跳过集成测试（生产/CI 镜像内置 ffmpeg 包）")
 	}
 	var buf bytes.Buffer
 	img := image.NewRGBA(image.Rect(0, 0, 64, 64))
@@ -186,15 +212,15 @@ func TestTranscodeCWebPIntegration(t *testing.T) {
 	if err := png.Encode(&buf, img); err != nil {
 		t.Fatalf("构造 PNG 失败: %v", err)
 	}
-	out, err := transcodeCWebP(context.Background(), buf.Bytes())
+	out, err := transcodeFFmpeg(context.Background(), buf.Bytes())
 	if err != nil {
-		t.Fatalf("cwebp 转码失败: %v", err)
+		t.Fatalf("ffmpeg 转码失败: %v", err)
 	}
 	if !bytes.HasPrefix(out, []byte("RIFF")) || !bytes.Contains(out[:min(16, len(out))], []byte("WEBP")) {
 		t.Fatalf("输出应为 WebP(RIFF...WEBP): 头 %q", out[:min(16, len(out))])
 	}
 
-	if _, err := transcodeCWebP(context.Background(), append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0}, 64)...)); !errors.Is(err, errInvalidImage) {
+	if _, err := transcodeFFmpeg(context.Background(), append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0}, 64)...)); !errors.Is(err, errInvalidImage) {
 		t.Fatalf("损坏输入应 errInvalidImage: %v", err)
 	}
 }

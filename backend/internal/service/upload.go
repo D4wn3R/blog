@@ -1,11 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"time"
 
@@ -36,8 +36,9 @@ type UploadDTO struct {
 }
 
 // Upload 接收原始图片字节：魔数嗅探（不信任客户端 MIME/文件名）分派分支：
-// jpeg/png → 转 WebP（q80）；webp/gif → 原样入桶（webp 不二次压损，gif 保动画 D1）；
-// 其他一律 400。对象键 {yyyyMM}/{uuid}.{ext}：月份取服务端当前时间，
+// jpeg/png/bmp/tiff → 转 WebP（q80）；webp/gif → 原样入桶（webp 不二次压损，
+// gif 保动画 D1）；其他一律 400。TIFF 魔数不在 Go 标准嗅探表内，由 sniffTIFF 补齐。
+// 对象键 {yyyyMM}/{uuid}.{ext}：月份取服务端当前时间，
 // uuid 为 crypto/rand 随机的 UUID v4，扩展名只由嗅探结果决定（防路径穿越与覆盖）
 func (s *UploadService) Upload(ctx context.Context, src io.Reader) (*UploadDTO, error) {
 	data, err := io.ReadAll(io.LimitReader(src, _maxImageSize+1))
@@ -49,8 +50,8 @@ func (s *UploadService) Upload(ctx context.Context, src io.Reader) (*UploadDTO, 
 	}
 
 	var contentType, ext string
-	switch http.DetectContentType(data) {
-	case "image/jpeg", "image/png":
+	switch sniffImageType(data) {
+	case "image/jpeg", "image/png", "image/bmp", "image/tiff":
 		if data, err = s.transcode(ctx, data); err != nil {
 			if errors.Is(err, errInvalidImage) {
 				return nil, errBadRequest("不支持的图片内容")
@@ -76,40 +77,44 @@ func (s *UploadService) Upload(ctx context.Context, src io.Reader) (*UploadDTO, 
 	}, nil
 }
 
-// transcodeCWebP 调外部 cwebp（alpine 运行镜像的 libwebp-tools 包）编码 WebP。
-// cwebp 不支持 stdin/stdout，走临时文件中转：文件名由服务端随机生成，无路径注入面；
-// 格式由 cwebp 按魔数自嗅探，扩展名无关；-metadata exif 保留拍摄方向信息（手机竖图）。
-// 命令缺失属部署缺陷（503），编码失败按输入内容问题处理（400）
-func transcodeCWebP(ctx context.Context, src []byte) ([]byte, error) {
-	in, err := os.CreateTemp("", "upload-*.img")
-	if err != nil {
-		return nil, errServer(err)
-	}
-	tmpIn := in.Name()
-	tmpOut := tmpIn + ".webp"
-	defer func() {
-		_ = in.Close()        // 主流程已显式 Close，此处兜底，失败无需处理
-		_ = os.Remove(tmpIn)  // 临时文件清理，失败无需处理
-		_ = os.Remove(tmpOut) // 同上
-	}()
+// _tiffMagicLE/_tiffMagicBE TIFF 魔数（小端 II*、大端 MM*）：Go 标准嗅探表不含 TIFF，手动补齐
+var (
+	_tiffMagicLE = []byte("II*\x00")
+	_tiffMagicBE = []byte("MM\x00*")
+)
 
-	if _, err = in.Write(src); err != nil {
-		return nil, errServer(err)
+// sniffImageType 图片内容类型嗅探：在标准库魔数表基础上补 TIFF；
+// 嗅探结果决定转码分支与入桶扩展名，客户端自报 MIME 一律不信任
+func sniffImageType(data []byte) string {
+	if bytes.HasPrefix(data, _tiffMagicLE) || bytes.HasPrefix(data, _tiffMagicBE) {
+		return "image/tiff"
 	}
-	if err = in.Close(); err != nil {
-		return nil, errServer(err)
-	}
+	return http.DetectContentType(data)
+}
 
-	cmd := exec.CommandContext(ctx, "cwebp", "-quiet", "-q", "80", "-metadata", "exif", tmpIn, "-o", tmpOut)
+// transcodeFFmpeg 调外部 ffmpeg（alpine 运行镜像的 ffmpeg 包）编码 WebP。
+// stdin/stdout 管道直通，无临时文件；-q:v 质量映射 libwebp q80。
+// ffmpeg 解码时应用 EXIF orientation，竖图输出即物理旋转（不再依赖阅读端处理）。
+// 命令缺失属部署缺陷（500），解码失败按输入内容问题处理（errInvalidImage → 400）
+func transcodeFFmpeg(ctx context.Context, src []byte) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-nostdin", "-loglevel", "error",
+		"-i", "pipe:0",
+		"-c:v", "libwebp", "-q:v", "80",
+		"-f", "image2", "-frames:v", "1",
+		"pipe:1",
+	)
+	cmd.Stdin = bytes.NewReader(src)
+	var out bytes.Buffer
+	cmd.Stdout = &out
 	if err := cmd.Run(); err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
 			return nil, errServer(err)
 		}
 		return nil, errInvalidImage
 	}
-	data, err := os.ReadFile(tmpOut)
-	if err != nil || len(data) == 0 {
+	if out.Len() == 0 {
 		return nil, errInvalidImage
 	}
-	return data, nil
+	return out.Bytes(), nil
 }
