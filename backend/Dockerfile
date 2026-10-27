@@ -1,7 +1,8 @@
-# GOPROXY 走国内镜像（服务器直连 goproxy.cn）
+# GOPROXY 走国内镜像（服务器直连 goproxy.cn）；海外 CI 用 build-arg 覆盖回官方代理
 # 配置优先级：compose 环境变量 > 挂载的 .env（凭证兜底）> configs/config.yaml（缺省值）
 FROM golang:1.26-alpine AS build
-ENV GOPROXY=https://goproxy.cn,direct
+ARG GOPROXY=https://goproxy.cn,direct
+ENV GOPROXY=${GOPROXY}
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
