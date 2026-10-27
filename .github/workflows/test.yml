@@ -1,0 +1,59 @@
+# 可复用测试矩阵：PR（ci.yml）与 main 部署（cd.yml）共用
+# 后端格式检查由 golangci-lint 强制（gofumpt + goimports formatter），不再单列步骤
+name: Test
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: backend lint + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache: true
+          cache-dependency-path: backend/go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          working-directory: backend
+          version: v2.6
+
+      - name: go test
+        run: go test ./...
+
+  frontend:
+    name: frontend lint + test + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: npm ci
+        run: npm ci
+
+      - name: oxlint
+        run: npm run lint
+
+      - name: vitest
+        run: npm test
+
+      - name: build
+        run: npm run build

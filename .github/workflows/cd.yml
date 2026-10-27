@@ -1,0 +1,193 @@
+# CD：main 合并后自动构建镜像 → 推送 GHCR → 部署 redrock(backend) → txy(frontend) → 公网冒烟
+#
+# 部署模型（不改服务器任何手工维护的配置）：
+#   1. CI 构建双镜像推 ghcr.io/d4wn3r/blog-{backend,frontend}，tag = commit 短 sha + latest
+#   2. 服务器上 docker pull 对应 tag → docker tag 成本机镜像名 → compose up -d 重建容器
+#      （txy 的 nginx.conf/证书挂载、redrock 的 host 网络等服务器特化配置一概不动）
+#   3. 回滚：workflow_dispatch 传 image_tag（历史短 sha）即跳过构建与测试直接重部署旧镜像
+#
+# SSH 路径：runner → txy(公网) ；runner → txy 跳板 → redrock(10.8.0.2, WireGuard)
+# 凭证：TXY_SSH_KEY / REDROCK_SSH_KEY 专用部署密钥对；主机地址与站点域名走
+#       secrets（TXY_HOST / SITE_URL），避免公网资产信息进入仓库历史
+# 兜底：scripts/deploy.sh 手动通道保留，CI 挂了不影响手动发布
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 部署指定镜像 tag（历史短 sha，用于回滚；留空 = 构建并部署当前 commit）
+        required: false
+        type: string
+
+# 部署串行排队，不取消进行中的部署（避免半途而废留下不一致状态）
+concurrency:
+  group: cd-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  BACKEND_IMAGE: ghcr.io/d4wn3r/blog-backend
+  FRONTEND_IMAGE: ghcr.io/d4wn3r/blog-frontend
+  REDROCK_HOST: d4wn3r@10.8.0.2 # WireGuard 隧道内网地址，非公网资产
+
+jobs:
+  test:
+    name: Test matrix
+    if: ${{ inputs.image_tag == '' }}
+    uses: ./.github/workflows/test.yml
+
+  build:
+    name: build + push images
+    runs-on: ubuntu-latest
+    needs: test
+    if: ${{ !cancelled() && !failure() }}
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 计算镜像 tag
+        id: vars
+        run: echo "tag=${INPUT_TAG:-${GITHUB_SHA:0:7}}" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_TAG: ${{ inputs.image_tag }}
+
+      - uses: docker/login-action@v4
+        if: ${{ inputs.image_tag == '' }}
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v4
+        if: ${{ inputs.image_tag == '' }}
+
+      - name: build backend
+        if: ${{ inputs.image_tag == '' }}
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          # 生产机固定 x86_64，显式钉死防 runner 架构漂移
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:${{ steps.vars.outputs.tag }}
+            ${{ env.BACKEND_IMAGE }}:latest
+          # 海外 runner 走官方代理，绕开 goproxy.cn 跨洋回源
+          build-args: |
+            GOPROXY=https://proxy.golang.org,direct
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: build frontend
+        if: ${{ inputs.image_tag == '' }}
+        uses: docker/build-push-action@v7
+        with:
+          context: frontend
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:${{ steps.vars.outputs.tag }}
+            ${{ env.FRONTEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: deploy redrock + txy
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      TAG: ${{ needs.build.outputs.tag }}
+      TXY_HOST: ${{ secrets.TXY_HOST }}
+      SITE_URL: ${{ secrets.SITE_URL }}
+    steps:
+      - name: 校验前置变量
+        run: |
+          [ -n "$TAG" ] || { echo "缺少镜像 tag"; exit 1; }
+          [ -n "$TXY_HOST" ] || { echo "缺少 secret: TXY_HOST"; exit 1; }
+          [ -n "$SITE_URL" ] || { echo "缺少 secret: SITE_URL"; exit 1; }
+
+      - name: 写入部署私钥与 ssh 配置
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/id_txy"
+          printf '%s\n' "${{ secrets.TXY_SSH_KEY }}" > "$RUNNER_TEMP/id_txy"
+          install -m 600 /dev/null "$RUNNER_TEMP/id_redrock"
+          printf '%s\n' "${{ secrets.REDROCK_SSH_KEY }}" > "$RUNNER_TEMP/id_redrock"
+          # 双主机收进临时 config：redrock 经 txy 跳板（-J 不继承命令行 -i，密钥必须写这里）
+          cat > "$RUNNER_TEMP/ssh_config" <<CONF
+          Host txy
+            HostName ${TXY_HOST#*@}
+            User ${TXY_HOST%%@*}
+            IdentityFile $RUNNER_TEMP/id_txy
+            StrictHostKeyChecking accept-new
+
+          Host redrock
+            HostName ${REDROCK_HOST#*@}
+            User ${REDROCK_HOST%%@*}
+            IdentityFile $RUNNER_TEMP/id_redrock
+            ProxyJump txy
+            StrictHostKeyChecking accept-new
+          CONF
+
+      - name: 部署 redrock（backend）
+        env:
+          KEY_CONFIG: ${{ runner.temp }}/ssh_config
+        run: |
+          ssh -F "$KEY_CONFIG" redrock "TAG=$TAG IMAGE=$BACKEND_IMAGE bash -s" <<'EOF'
+          set -euo pipefail
+          cd ~/blog
+          docker pull "$IMAGE:$TAG"
+          docker tag "$IMAGE:$TAG" blog-backend:latest
+          # compose 发现镜像已存在即直接复用，不会触发本地构建
+          docker compose up -d backend
+          EOF
+
+      - name: 等待 backend 健康
+        env:
+          KEY_CONFIG: ${{ runner.temp }}/ssh_config
+        run: |
+          for _ in $(seq 1 30); do
+            status=$(ssh -F "$KEY_CONFIG" redrock \
+              "docker inspect -f '{{.State.Health.Status}}' blog-backend 2>/dev/null" || true)
+            [ "$status" = "healthy" ] && { echo "backend healthy"; exit 0; }
+            sleep 10
+          done
+          echo "backend 未就绪，排障：经 txy 跳板 ssh redrock 'docker logs --tail 50 blog-backend'" >&2
+          exit 1
+
+      - name: 部署 txy（frontend）
+        env:
+          KEY_CONFIG: ${{ runner.temp }}/ssh_config
+        run: |
+          ssh -F "$KEY_CONFIG" txy "TAG=$TAG IMAGE=$FRONTEND_IMAGE bash -s" <<'EOF'
+          set -euo pipefail
+          cd /root/blog
+          docker pull "$IMAGE:$TAG"
+          docker tag "$IMAGE:$TAG" blog-frontend:latest
+          docker compose -f docker-compose.nginx.yml up -d frontend
+          EOF
+
+      - name: 等待 nginx 健康
+        env:
+          KEY_CONFIG: ${{ runner.temp }}/ssh_config
+        run: |
+          for _ in $(seq 1 12); do
+            status=$(ssh -F "$KEY_CONFIG" txy \
+              "docker inspect -f '{{.State.Health.Status}}' blog-nginx 2>/dev/null" || true)
+            [ "$status" = "healthy" ] && { echo "nginx healthy"; exit 0; }
+            sleep 5
+          done
+          echo "nginx 未就绪，排障：ssh txy 'docker logs --tail 50 blog-nginx'" >&2
+          exit 1
+
+      - name: 公网冒烟（txy → redrock 全链路）
+        run: |
+          curl -fsS "$SITE_URL/api/health" | grep -q '"status"'
+          curl -fsS -o /dev/null "$SITE_URL/"
+          echo "线上冒烟通过：$TAG 已上线"
