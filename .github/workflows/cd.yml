@@ -139,15 +139,35 @@ jobs:
         env:
           KEY_CONFIG: ${{ runner.temp }}/ssh_config
         run: |
+          # 拉取放远端后台跑再轮询结果：大层下载期间 SSH 长时间无输出会被中间层掐断
+          # （Broken pipe），国内直连 ghcr.io 偶发 reset 也由脚本内重试兜住
           ssh -F "$KEY_CONFIG" redrock "TAG=$TAG IMAGE=$BACKEND_IMAGE bash -s" <<'EOF'
           set -euo pipefail
           cd ~/blog
-          # 国内网络直连 ghcr.io 偶发连接重置，重试到拉取成功为止
+          cat > /tmp/blog-pull.sh <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -uo pipefail
           for i in $(seq 1 5); do
-            docker pull "$IMAGE:$TAG" && break
-            [ "$i" = 5 ] && { echo "镜像拉取重试 5 次仍失败"; exit 1; }
-            echo "第 $i 次拉取失败，10s 后重试"; sleep 10
+            docker pull "$1:$2" && exit 0
+            echo "第 $i 次拉取失败，10s 后重试"
+            sleep 10
           done
+          exit 1
+          SCRIPT
+          nohup bash /tmp/blog-pull.sh "$IMAGE" "$TAG" > /tmp/blog-pull.log 2>&1 &
+          echo "拉取已后台启动"
+          EOF
+          for _ in $(seq 1 60); do
+            out=$(ssh -F "$KEY_CONFIG" redrock \
+              'pgrep -f "blog-pull.sh" >/dev/null && echo RUNNING || echo DONE; tail -2 /tmp/blog-pull.log 2>/dev/null' || echo SSH_RETRY)
+            echo "$out" | grep -q "RUNNING" || break
+            sleep 15
+          done
+          ssh -F "$KEY_CONFIG" redrock "TAG=$TAG IMAGE=$BACKEND_IMAGE bash -s" <<'EOF'
+          set -euo pipefail
+          cd ~/blog
+          # 确认镜像真的落地（后台脚本可能重试 5 次后仍失败）
+          docker image inspect "$IMAGE:$TAG" > /dev/null
           docker tag "$IMAGE:$TAG" blog-backend:latest
           # compose 发现镜像已存在即直接复用，不会触发本地构建
           docker compose up -d backend
@@ -170,14 +190,33 @@ jobs:
         env:
           KEY_CONFIG: ${{ runner.temp }}/ssh_config
         run: |
+          # 同 redrock：后台拉取 + 轮询，防 SSH 静默被掐
           ssh -F "$KEY_CONFIG" txy "TAG=$TAG IMAGE=$FRONTEND_IMAGE bash -s" <<'EOF'
           set -euo pipefail
           cd /root/blog
+          cat > /tmp/blog-pull.sh <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -uo pipefail
           for i in $(seq 1 5); do
-            docker pull "$IMAGE:$TAG" && break
-            [ "$i" = 5 ] && { echo "镜像拉取重试 5 次仍失败"; exit 1; }
-            echo "第 $i 次拉取失败，10s 后重试"; sleep 10
+            docker pull "$1:$2" && exit 0
+            echo "第 $i 次拉取失败，10s 后重试"
+            sleep 10
           done
+          exit 1
+          SCRIPT
+          nohup bash /tmp/blog-pull.sh "$IMAGE" "$TAG" > /tmp/blog-pull.log 2>&1 &
+          echo "拉取已后台启动"
+          EOF
+          for _ in $(seq 1 60); do
+            out=$(ssh -F "$KEY_CONFIG" txy \
+              'pgrep -f "blog-pull.sh" >/dev/null && echo RUNNING || echo DONE; tail -2 /tmp/blog-pull.log 2>/dev/null' || echo SSH_RETRY)
+            echo "$out" | grep -q "RUNNING" || break
+            sleep 15
+          done
+          ssh -F "$KEY_CONFIG" txy "TAG=$TAG IMAGE=$FRONTEND_IMAGE bash -s" <<'EOF'
+          set -euo pipefail
+          cd /root/blog
+          docker image inspect "$IMAGE:$TAG" > /dev/null
           docker tag "$IMAGE:$TAG" blog-frontend:latest
           docker compose -f docker-compose.nginx.yml up -d frontend
           EOF
