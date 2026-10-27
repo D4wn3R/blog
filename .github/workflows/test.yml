@@ -22,11 +22,13 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
 
+      # 从源码装最新 golangci-lint：预编译二进制内置的 Go 版本可能低于项目 go.mod 要求，
+      # 用 setup-go 装好的工具链 go install 则必然匹配
+      - name: install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          working-directory: backend
-          version: v2.6
+        run: golangci-lint run
 
       - name: go test
         run: go test ./...
