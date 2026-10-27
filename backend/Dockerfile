@@ -15,9 +15,9 @@ COPY --from=build /out/server ./server
 COPY configs/config.yaml ./configs/config.yaml
 
 # apk 源切国内镜像（官方 CDN 对部署机不稳定，同 GOPROXY 道理）；ca-certificates：OAuth 走
-# HTTPS 调 GitHub API；libwebp-tools：cwebp 图片转 WebP
+# HTTPS 调 GitHub API；ffmpeg：libwebp 编码器做图片转 WebP（支持 jpeg/png/bmp/tiff 输入）
 RUN sed -i 's#https://dl-cdn.alpinelinux.org#https://mirrors.aliyun.com#g' /etc/apk/repositories \
-	&& apk add --no-cache ca-certificates tzdata libwebp-tools \
+	&& apk add --no-cache ca-certificates tzdata ffmpeg \
 	&& cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 # 非 root 用户运行

@@ -46,7 +46,7 @@ func New(repo *repository.Repository, rdb *redis.Client, mc *rustfs.Client, reg 
 	s.About = &AboutService{svc: s}
 	s.Upload = &UploadService{
 		svc:       s,
-		transcode: transcodeCWebP,
+		transcode: transcodeFFmpeg,
 		put: func(ctx context.Context, objectKey, contentType string, data []byte) error {
 			return s.RustFS.PutObject(ctx, objectKey, contentType, data)
 		},
