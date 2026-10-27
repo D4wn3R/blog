@@ -142,7 +142,12 @@ jobs:
           ssh -F "$KEY_CONFIG" redrock "TAG=$TAG IMAGE=$BACKEND_IMAGE bash -s" <<'EOF'
           set -euo pipefail
           cd ~/blog
-          docker pull "$IMAGE:$TAG"
+          # 国内网络直连 ghcr.io 偶发连接重置，重试到拉取成功为止
+          for i in $(seq 1 5); do
+            docker pull "$IMAGE:$TAG" && break
+            [ "$i" = 5 ] && { echo "镜像拉取重试 5 次仍失败"; exit 1; }
+            echo "第 $i 次拉取失败，10s 后重试"; sleep 10
+          done
           docker tag "$IMAGE:$TAG" blog-backend:latest
           # compose 发现镜像已存在即直接复用，不会触发本地构建
           docker compose up -d backend
@@ -168,7 +173,11 @@ jobs:
           ssh -F "$KEY_CONFIG" txy "TAG=$TAG IMAGE=$FRONTEND_IMAGE bash -s" <<'EOF'
           set -euo pipefail
           cd /root/blog
-          docker pull "$IMAGE:$TAG"
+          for i in $(seq 1 5); do
+            docker pull "$IMAGE:$TAG" && break
+            [ "$i" = 5 ] && { echo "镜像拉取重试 5 次仍失败"; exit 1; }
+            echo "第 $i 次拉取失败，10s 后重试"; sleep 10
+          done
           docker tag "$IMAGE:$TAG" blog-frontend:latest
           docker compose -f docker-compose.nginx.yml up -d frontend
           EOF
