@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	"github.com/D4wn3R/blog/backend/internal/config"
 	"github.com/D4wn3R/blog/backend/internal/handler"
@@ -20,7 +21,11 @@ import (
 //	管理 API → 需管理员（AuthRequired + AdminRequired）：文章/动态/友链/关于/上传 CRUD
 func New(cfg *config.Config, h *handler.Handler) *gin.Engine {
 	r := gin.New()
-	// 顺序：RequestID 最先（后续日志/恢复均携带 request_id）→ Recovery → 访问日志 → CORS
+	// 顺序：链路追踪最先（span 覆盖整个请求生命周期）→ RequestID → Recovery → 访问日志 → CORS
+	// 仅在启用追踪时挂载：关闭时连中间件都不注册，保持零开销
+	if cfg.Obs.Enabled {
+		r.Use(otelgin.Middleware(cfg.Obs.ServiceName, otelgin.WithFilter(traceableRequest)))
+	}
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Recovery())
 	r.Use(middleware.Logger())
@@ -129,4 +134,20 @@ func New(cfg *config.Config, h *handler.Handler) *gin.Engine {
 		}
 	}
 	return r
+}
+
+// _untracedPaths 不产生 span 的路径：探针每 5 秒一次，计入链路会把
+// 真实业务请求淹没在噪声里；/metrics 未来由 Prometheus 高频抓取，同理排除
+var _untracedPaths = map[string]struct{}{
+	"/healthz":    {},
+	"/readyz":     {},
+	"/api/health": {},
+	"/metrics":    {},
+}
+
+// traceableRequest otelgin 过滤器：返回 false 表示跳过该请求的 span。
+// 用精确匹配而非前缀匹配——避免误伤 /api/healthfoo 这类真实路由
+func traceableRequest(r *http.Request) bool {
+	_, skip := _untracedPaths[r.URL.Path]
+	return !skip
 }

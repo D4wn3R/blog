@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -23,6 +24,7 @@ import (
 	"github.com/D4wn3R/blog/backend/internal/handler"
 	"github.com/D4wn3R/blog/backend/internal/model"
 	"github.com/D4wn3R/blog/backend/internal/pkg/oauth"
+	"github.com/D4wn3R/blog/backend/internal/pkg/obs"
 	"github.com/D4wn3R/blog/backend/internal/pkg/redis"
 	"github.com/D4wn3R/blog/backend/internal/pkg/rustfs"
 	"github.com/D4wn3R/blog/backend/internal/repository"
@@ -66,6 +68,29 @@ func run(configPath string, migrate bool) error {
 		return fmt.Errorf("加载配置失败: %w", err)
 	}
 
+	// 可观测性：链路追踪初始化（Enabled=false 时为空 Provider，不建立任何连接）。
+	// 必须在 gorm.Open 之前完成——GORM 插件从全局 TracerProvider 取 tracer
+	telemetry, err := obs.New(context.Background(), obs.Config{
+		Enabled:     cfg.Obs.Enabled,
+		Endpoint:    cfg.Obs.Endpoint,
+		Insecure:    cfg.Obs.Insecure,
+		SampleRatio: cfg.Obs.SampleRatio,
+		ServiceName: cfg.Obs.ServiceName,
+		Environment: cfg.Obs.Environment,
+	})
+	if err != nil {
+		return fmt.Errorf("初始化链路追踪失败: %w", err)
+	}
+	// defer 的 LIFO 保证 flush 发生在 HTTP 服务停止之后：
+	// BatchSpanProcessor 异步批量上报，不 flush 则缓冲区里的 span 随进程丢失
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := telemetry.Shutdown(shutdownCtx); err != nil {
+			slog.Warn("关闭链路追踪失败", "err", err)
+		}
+	}()
+
 	gin.SetMode(cfg.Server.Mode)
 
 	// MySQL：GORM 慢查询/错误经 slog 输出（release 不打印 SQL，Warn 级含慢查询）
@@ -76,6 +101,18 @@ func run(configPath string, migrate bool) error {
 	db, err := gorm.Open(mysql.Open(cfg.MySQL.DSN), &gorm.Config{Logger: gormLogger})
 	if err != nil {
 		return fmt.Errorf("连接 MySQL 失败: %w", err)
+	}
+	// GORM 插件：每条 SQL 自动生成子 span。关掉插件自带的 metrics——
+	// 本阶段只做 trace，避免向全局 MeterProvider 注册无用指标。
+	// 选 uptrace/otelgorm 而非 gorm.io/plugin/opentelemetry：后者在非测试代码里
+	// 硬 import ClickHouse/Postgres 驱动，会给本项目凭空带入两个用不到的驱动
+	if telemetry.Enabled() {
+		if err := db.Use(otelgorm.NewPlugin(
+			otelgorm.WithTracerProvider(telemetry.TracerProvider()),
+			otelgorm.WithoutMetrics(),
+		)); err != nil {
+			return fmt.Errorf("注册 GORM 链路追踪插件失败: %w", err)
+		}
 	}
 	sqlDB, err := db.DB()
 	if err != nil {
@@ -103,7 +140,12 @@ func run(configPath string, migrate bool) error {
 		return errors.New("生产环境必须通过 BLOG_JWT_SECRET 设置至少 32 位的强随机 JWT secret")
 	}
 
-	rdb, err := redis.New(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB)
+	// Redis 埋点：仅在启用追踪时挂钩子，关闭时保持零额外开销
+	var redisOpts []redis.Option
+	if telemetry.Enabled() {
+		redisOpts = append(redisOpts, redis.WithTracerProvider(telemetry.TracerProvider()))
+	}
+	rdb, err := redis.New(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB, redisOpts...)
 	if err != nil {
 		return fmt.Errorf("连接 Redis 失败: %w", err)
 	}
