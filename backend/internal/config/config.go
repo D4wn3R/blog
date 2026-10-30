@@ -19,6 +19,7 @@ type Config struct {
 	OAuth  OAuth
 	CORS   CORS
 	Admin  Admin
+	Obs    Obs
 }
 
 // Server HTTP 服务配置
@@ -76,6 +77,24 @@ type OAuthProvider struct {
 // CORS 跨域白名单配置
 type CORS struct {
 	AllowedOrigins []string
+}
+
+// Obs 可观测性配置（OpenTelemetry 链路追踪）
+// Enabled 为 false 时后端不产生任何 span，也不向 Endpoint 发起连接——
+// 本地开发或未部署 Jaeger 的环境保持零开销、零依赖
+type Obs struct {
+	// Enabled 是否启用链路追踪导出（env：BLOG_OBS_ENABLED）
+	Enabled bool
+	// Endpoint OTLP gRPC 端点 host:port（env：BLOG_OBS_ENDPOINT）
+	Endpoint string
+	// Insecure 跳过 TLS 明文传输，仅限内网/隧道（env：BLOG_OBS_INSECURE）
+	Insecure bool
+	// SampleRatio 头部采样比例 0~1，1 表示全采（env：BLOG_OBS_SAMPLE_RATIO）
+	SampleRatio float64
+	// ServiceName 上报的服务名，Jaeger 按此聚合（env：BLOG_OBS_SERVICE_NAME）
+	ServiceName string
+	// Environment 部署环境标识，如 debug/release（env：BLOG_OBS_ENVIRONMENT）
+	Environment string
 }
 
 // Admin 管理员初始化配置，-migrate 时 seed 用（spec §8）
