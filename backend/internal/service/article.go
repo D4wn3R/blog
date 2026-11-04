@@ -9,11 +9,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/man-mu/blog/backend/internal/model"
-	appjwt "github.com/man-mu/blog/backend/internal/pkg/jwt"
-	"github.com/man-mu/blog/backend/internal/pkg/logctx"
-	"github.com/man-mu/blog/backend/internal/pkg/password"
-	"github.com/man-mu/blog/backend/internal/repository"
+	"github.com/D4wn3R/blog/backend/internal/model"
+	appjwt "github.com/D4wn3R/blog/backend/internal/pkg/jwt"
+	"github.com/D4wn3R/blog/backend/internal/pkg/logctx"
+	"github.com/D4wn3R/blog/backend/internal/pkg/password"
+	"github.com/D4wn3R/blog/backend/internal/repository"
 )
 
 // ArticleService 文章子服务：文章/分类/标签/归档（#A1~#A15）。

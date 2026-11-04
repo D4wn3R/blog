@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/man-mu/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/model"
 )
 
 // AboutService 关于页内容子服务（#B1/#B2/#B18，列表项增改删排序见 about_admin.go）

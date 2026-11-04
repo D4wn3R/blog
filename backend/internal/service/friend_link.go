@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/man-mu/blog/backend/internal/model"
-	"github.com/man-mu/blog/backend/internal/repository"
+	"github.com/D4wn3R/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/repository"
 )
 
 // FriendLinkService 友链子服务（#F1-#F4）

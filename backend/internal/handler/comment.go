@@ -3,8 +3,8 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/man-mu/blog/backend/internal/middleware"
-	"github.com/man-mu/blog/backend/internal/pkg/response"
+	"github.com/D4wn3R/blog/backend/internal/middleware"
+	"github.com/D4wn3R/blog/backend/internal/pkg/response"
 )
 
 // CommentList 某文章全量评论树（#C1，公开）：非分页全量形态 {list: [...]}，无 total

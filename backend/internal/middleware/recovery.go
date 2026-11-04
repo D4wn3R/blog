@@ -5,8 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/man-mu/blog/backend/internal/pkg/logctx"
-	"github.com/man-mu/blog/backend/internal/pkg/response"
+	"github.com/D4wn3R/blog/backend/internal/pkg/logctx"
+	"github.com/D4wn3R/blog/backend/internal/pkg/response"
 )
 
 // Recovery 捕获 panic，返回统一 JSON 错误并经 slog 记录堆栈（携带 request_id）

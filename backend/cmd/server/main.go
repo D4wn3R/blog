@@ -19,15 +19,15 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"github.com/man-mu/blog/backend/internal/config"
-	"github.com/man-mu/blog/backend/internal/handler"
-	"github.com/man-mu/blog/backend/internal/model"
-	"github.com/man-mu/blog/backend/internal/pkg/oauth"
-	"github.com/man-mu/blog/backend/internal/pkg/redis"
-	"github.com/man-mu/blog/backend/internal/pkg/rustfs"
-	"github.com/man-mu/blog/backend/internal/repository"
-	"github.com/man-mu/blog/backend/internal/router"
-	"github.com/man-mu/blog/backend/internal/service"
+	"github.com/D4wn3R/blog/backend/internal/config"
+	"github.com/D4wn3R/blog/backend/internal/handler"
+	"github.com/D4wn3R/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/pkg/oauth"
+	"github.com/D4wn3R/blog/backend/internal/pkg/redis"
+	"github.com/D4wn3R/blog/backend/internal/pkg/rustfs"
+	"github.com/D4wn3R/blog/backend/internal/repository"
+	"github.com/D4wn3R/blog/backend/internal/router"
+	"github.com/D4wn3R/blog/backend/internal/service"
 )
 
 // slogWriter 把 GORM logger 的 Printf 输出桥接到 slog，保持全站 JSON 结构化日志

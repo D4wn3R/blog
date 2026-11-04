@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/man-mu/blog/backend/internal/config"
-	"github.com/man-mu/blog/backend/internal/handler"
-	"github.com/man-mu/blog/backend/internal/middleware"
-	"github.com/man-mu/blog/backend/internal/pkg/response"
+	"github.com/D4wn3R/blog/backend/internal/config"
+	"github.com/D4wn3R/blog/backend/internal/handler"
+	"github.com/D4wn3R/blog/backend/internal/middleware"
+	"github.com/D4wn3R/blog/backend/internal/pkg/response"
 )
 
 // New 构建路由

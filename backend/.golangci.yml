@@ -16,4 +16,4 @@ formatters:
     - goimports
   settings:
     goimports:
-      local-prefixes: github.com/man-mu/blog/backend
+      local-prefixes: github.com/D4wn3R/blog/backend

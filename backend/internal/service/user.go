@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/man-mu/blog/backend/internal/model"
-	"github.com/man-mu/blog/backend/internal/repository"
+	"github.com/D4wn3R/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/repository"
 )
 
 // UserService 当前用户子服务：/me 与解绑（#8/#9）

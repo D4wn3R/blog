@@ -8,8 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/man-mu/blog/backend/internal/middleware"
-	"github.com/man-mu/blog/backend/internal/pkg/response"
+	"github.com/D4wn3R/blog/backend/internal/middleware"
+	"github.com/D4wn3R/blog/backend/internal/pkg/response"
 )
 
 // ---------- OAuth 登录/绑定（#1~#4） ----------

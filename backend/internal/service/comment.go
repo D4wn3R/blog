@@ -8,8 +8,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/man-mu/blog/backend/internal/model"
-	"github.com/man-mu/blog/backend/internal/repository"
+	"github.com/D4wn3R/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/repository"
 )
 
 // CommentService 评论子服务：楼中楼评论树 / 发表 / 软删墓碑（#C1~#C3）

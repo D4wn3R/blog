@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/man-mu/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/model"
 )
 
 // ---------- 通用模式（四张 about 列表表共用，泛型按具体 model 实例化） ----------

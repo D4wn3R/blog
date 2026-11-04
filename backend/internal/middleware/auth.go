@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	appjwt "github.com/man-mu/blog/backend/internal/pkg/jwt"
-	"github.com/man-mu/blog/backend/internal/pkg/response"
+	appjwt "github.com/D4wn3R/blog/backend/internal/pkg/jwt"
+	"github.com/D4wn3R/blog/backend/internal/pkg/response"
 )
 
 // 存入 gin.Context 的键

@@ -1,4 +1,4 @@
-module github.com/man-mu/blog/backend
+module github.com/D4wn3R/blog/backend
 
 go 1.26.4
 

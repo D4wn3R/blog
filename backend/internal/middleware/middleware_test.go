@@ -11,7 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/man-mu/blog/backend/internal/pkg/response"
+	"github.com/D4wn3R/blog/backend/internal/pkg/response"
 )
 
 func TestRequestID(t *testing.T) {

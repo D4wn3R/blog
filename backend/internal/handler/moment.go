@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/man-mu/blog/backend/internal/pkg/response"
+	"github.com/D4wn3R/blog/backend/internal/pkg/response"
 )
 
 // momentRequest #M2/#M3 请求体（同构：content 必传，images 缺省 = 无图）

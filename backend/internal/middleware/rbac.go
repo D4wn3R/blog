@@ -3,8 +3,8 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/man-mu/blog/backend/internal/model"
-	"github.com/man-mu/blog/backend/internal/pkg/response"
+	"github.com/D4wn3R/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/pkg/response"
 )
 
 // AdminRequired 在 AuthRequired 之后使用，校验管理员角色

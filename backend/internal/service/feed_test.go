@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/man-mu/blog/backend/internal/repository"
+	"github.com/D4wn3R/blog/backend/internal/repository"
 )
 
 func TestBuildFeed(t *testing.T) {
