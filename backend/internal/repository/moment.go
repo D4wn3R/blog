@@ -7,7 +7,7 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
-	"github.com/man-mu/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/model"
 )
 
 // CountMoments 统计显示中动态总数（#M1 分页 total）

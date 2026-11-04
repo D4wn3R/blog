@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/man-mu/blog/backend/internal/model"
-	"github.com/man-mu/blog/backend/internal/repository"
+	"github.com/D4wn3R/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/repository"
 )
 
 // 分类名/标签名 rune 上限即列宽（schema §2.3，uk_categories_name / uk_tags_name 唯一索引）

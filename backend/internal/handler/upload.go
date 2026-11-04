@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/man-mu/blog/backend/internal/pkg/response"
+	"github.com/D4wn3R/blog/backend/internal/pkg/response"
 )
 
 // _maxUploadBody multipart 请求体上限：5MiB 原图 + multipart 边界字段余量；

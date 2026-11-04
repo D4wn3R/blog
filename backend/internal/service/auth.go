@@ -7,8 +7,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/man-mu/blog/backend/internal/model"
-	appjwt "github.com/man-mu/blog/backend/internal/pkg/jwt"
+	"github.com/D4wn3R/blog/backend/internal/model"
+	appjwt "github.com/D4wn3R/blog/backend/internal/pkg/jwt"
 )
 
 // AuthService 凭证子服务：auth_code 换凭证 / refresh 轮换 / 登出（#5~#7）

@@ -8,11 +8,11 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/man-mu/blog/backend/internal/model"
-	"github.com/man-mu/blog/backend/internal/pkg/logctx"
-	"github.com/man-mu/blog/backend/internal/pkg/oauth"
-	"github.com/man-mu/blog/backend/internal/pkg/randx"
-	"github.com/man-mu/blog/backend/internal/repository"
+	"github.com/D4wn3R/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/pkg/logctx"
+	"github.com/D4wn3R/blog/backend/internal/pkg/oauth"
+	"github.com/D4wn3R/blog/backend/internal/pkg/randx"
+	"github.com/D4wn3R/blog/backend/internal/repository"
 )
 
 // OAuthService OAuth 登录/绑定子服务（#1~#4）

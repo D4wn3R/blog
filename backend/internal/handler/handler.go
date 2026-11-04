@@ -8,10 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/man-mu/blog/backend/internal/config"
-	"github.com/man-mu/blog/backend/internal/pkg/logctx"
-	"github.com/man-mu/blog/backend/internal/pkg/response"
-	"github.com/man-mu/blog/backend/internal/service"
+	"github.com/D4wn3R/blog/backend/internal/config"
+	"github.com/D4wn3R/blog/backend/internal/pkg/logctx"
+	"github.com/D4wn3R/blog/backend/internal/pkg/response"
+	"github.com/D4wn3R/blog/backend/internal/service"
 )
 
 // Handler HTTP 层，仅做参数绑定/校验与响应封装

@@ -10,8 +10,8 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 
-	"github.com/man-mu/blog/backend/internal/model"
-	"github.com/man-mu/blog/backend/internal/pkg/randx"
+	"github.com/D4wn3R/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/pkg/randx"
 )
 
 // 唯一索引冲突（MySQL 1062）按业务语义分类：并发正确性由唯一索引兜底（spec 总则 2），

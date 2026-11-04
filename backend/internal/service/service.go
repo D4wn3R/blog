@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 
-	"github.com/man-mu/blog/backend/internal/config"
-	"github.com/man-mu/blog/backend/internal/pkg/oauth"
-	"github.com/man-mu/blog/backend/internal/pkg/redis"
-	"github.com/man-mu/blog/backend/internal/pkg/rustfs"
-	"github.com/man-mu/blog/backend/internal/repository"
+	"github.com/D4wn3R/blog/backend/internal/config"
+	"github.com/D4wn3R/blog/backend/internal/pkg/oauth"
+	"github.com/D4wn3R/blog/backend/internal/pkg/redis"
+	"github.com/D4wn3R/blog/backend/internal/pkg/rustfs"
+	"github.com/D4wn3R/blog/backend/internal/repository"
 )
 
 // Service 业务逻辑层，按模块拆分子服务，事务边界在本层与 repository

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/man-mu/blog/backend/internal/repository"
+	"github.com/D4wn3R/blog/backend/internal/repository"
 )
 
 // RSS 订阅源（GET /feed.xml，RSS 2.0）

@@ -8,7 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/man-mu/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/model"
 )
 
 // ErrCategoryInUse 分类下仍有文章（status 1/2 任意），删除被拒（#A11）

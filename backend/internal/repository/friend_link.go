@@ -6,7 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/man-mu/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/model"
 )
 
 // ListFriendLinks 全量友链（#F1，D-friend-count：不分页，id ASC）

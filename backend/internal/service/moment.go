@@ -9,7 +9,7 @@ import (
 
 	"gorm.io/datatypes"
 
-	"github.com/man-mu/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/model"
 )
 
 // MomentService 个人动态子服务：C 端分页列表 + 管理端 CRUD（#M1~#M4）

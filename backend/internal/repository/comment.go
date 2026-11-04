@@ -7,7 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/man-mu/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/model"
 )
 
 // CommentRow #C1 单条 SQL 的扫描结果：评论行 + LEFT JOIN users 的作者/被回复人信息
