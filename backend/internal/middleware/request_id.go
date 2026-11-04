@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/D4wn3R/blog/backend/internal/pkg/logctx"
 )
@@ -17,7 +19,10 @@ const _maxIncomingRequestID = 64
 
 // RequestID 为每个请求分配 ID：优先沿用上游（网关/负载均衡）传入的 X-Request-Id 便于链路串联，
 // 缺失或超长则生成 UUID；ID 回写响应头，并注入带 request_id 字段的 slog logger 到请求 context，
-// 使 handler/service/recovery 的日志都自动携带同一 request_id（规范 §5 request_id 贯穿日志）
+// 使 handler/service/recovery 的日志都自动携带同一 request_id（规范 §5 request_id 贯穿日志）。
+//
+// 链路追踪启用时额外做双向关联：把 trace_id 并进日志字段（日志 → Jaeger 按 trace_id 查），
+// 把 request_id 挂成 span 属性（Jaeger → 日志按 request_id 查）。
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.GetHeader("X-Request-Id")
@@ -26,9 +31,16 @@ func RequestID() gin.HandlerFunc {
 		}
 		c.Set(CtxRequestID, id)
 		c.Writer.Header().Set("X-Request-Id", id)
-		c.Request = c.Request.WithContext(
-			logctx.New(c.Request.Context(), slog.Default().With("request_id", id)),
-		)
+
+		ctx := c.Request.Context()
+		logger := slog.Default().With("request_id", id)
+		// 只在 span 已采样时补 trace_id：未采样的 span 不会进 Jaeger，
+		// 写进日志只会得到一个查不到的死链接
+		if sc := trace.SpanContextFromContext(ctx); sc.IsValid() && sc.IsSampled() {
+			logger = logger.With("trace_id", sc.TraceID().String())
+			trace.SpanFromContext(ctx).SetAttributes(attribute.String("request_id", id))
+		}
+		c.Request = c.Request.WithContext(logctx.New(ctx, logger))
 		c.Next()
 	}
 }
