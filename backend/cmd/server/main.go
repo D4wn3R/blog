@@ -14,15 +14,17 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
-	"gorm.io/driver/mysql"
+	gormmysql "gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
 	"github.com/D4wn3R/blog/backend/internal/config"
 	"github.com/D4wn3R/blog/backend/internal/handler"
 	"github.com/D4wn3R/blog/backend/internal/model"
+	"github.com/D4wn3R/blog/backend/internal/pkg/metrics"
 	"github.com/D4wn3R/blog/backend/internal/pkg/oauth"
 	"github.com/D4wn3R/blog/backend/internal/pkg/obs"
 	"github.com/D4wn3R/blog/backend/internal/pkg/redis"
@@ -98,7 +100,7 @@ func run(configPath string, migrate bool) error {
 		SlowThreshold: 200 * time.Millisecond,
 		LogLevel:      logger.Warn,
 	})
-	db, err := gorm.Open(mysql.Open(cfg.MySQL.DSN), &gorm.Config{Logger: gormLogger})
+	db, err := gorm.Open(gormmysql.Open(cfg.MySQL.DSN), &gorm.Config{Logger: gormLogger})
 	if err != nil {
 		return fmt.Errorf("连接 MySQL 失败: %w", err)
 	}
@@ -126,6 +128,15 @@ func run(configPath string, migrate bool) error {
 	sqlDB.SetMaxOpenConns(50)
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	// 指标注册：连接池指标挂在 sqlDB 就绪之后，暴露 open/idle/in_use/wait
+	metricsReg := metrics.New(metrics.Config{Enabled: cfg.Metrics.Enabled})
+	if dbName, err := mysql.ParseDSN(cfg.MySQL.DSN); err == nil {
+		if err := metricsReg.RegisterDBStats(sqlDB, dbName.DBName); err != nil {
+			// 连接池指标失败不该阻断启动——HTTP 指标仍可用
+			slog.Warn("注册连接池指标失败", "err", err)
+		}
+	}
 
 	repo := repository.New(db)
 
@@ -171,7 +182,7 @@ func run(configPath string, migrate bool) error {
 	svc := service.New(repo, rdb, mc, reg, cfg)
 	h := handler.New(svc, cfg)
 
-	r := router.New(cfg, h)
+	r := router.New(cfg, h, metricsReg)
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	// 生产级默认（规范 §5）：显式超时防慢客户端占用连接；上传走 multipart，读放宽到 30s
 	srv := &http.Server{

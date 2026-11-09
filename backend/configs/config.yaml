@@ -46,3 +46,6 @@ obs:
   sample_ratio: 1 # 头部采样比例 0~1，学习期全采
   service_name: "blog-backend"
   environment: "debug" # 与 server.mode 呼应，生产建议改成 release
+
+metrics:
+  enabled: false # 启用后暴露 /metrics 供 Prometheus 抓取；与 obs 独立开关

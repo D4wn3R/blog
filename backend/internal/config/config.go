@@ -11,15 +11,16 @@ import (
 
 // Config 应用总配置，对应 configs/config.yaml
 type Config struct {
-	Server Server
-	MySQL  MySQL
-	Redis  Redis
-	RustFS RustFS
-	JWT    JWT
-	OAuth  OAuth
-	CORS   CORS
-	Admin  Admin
-	Obs    Obs
+	Server  Server
+	MySQL   MySQL
+	Redis   Redis
+	RustFS  RustFS
+	JWT     JWT
+	OAuth   OAuth
+	CORS    CORS
+	Admin   Admin
+	Obs     Obs
+	Metrics Metrics
 }
 
 // Server HTTP 服务配置
@@ -102,6 +103,14 @@ type Admin struct {
 	// GitHubID 管理员 GitHub 数字 ID（非用户名，避免改名失效），
 	// 查询：curl https://api.github.com/users/<用户名> 取 id；env：BLOG_ADMIN_GITHUB_ID
 	GitHubID uint64
+}
+
+// Metrics Prometheus 指标配置
+// 与 Obs 独立开关：链路追踪推给 Jaeger（push），指标由 Prometheus 来抓（pull），
+// 两者可以只开其中一个
+type Metrics struct {
+	// Enabled 是否启用指标采集与 /metrics 端点（env：BLOG_METRICS_ENABLED）
+	Enabled bool
 }
 
 // Load 读取配置文件，支持环境变量覆盖（前缀 BLOG，点转下划线，如 BLOG_JWT_SECRET）

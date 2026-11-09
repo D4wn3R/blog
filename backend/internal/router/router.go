@@ -10,6 +10,7 @@ import (
 	"github.com/D4wn3R/blog/backend/internal/config"
 	"github.com/D4wn3R/blog/backend/internal/handler"
 	"github.com/D4wn3R/blog/backend/internal/middleware"
+	"github.com/D4wn3R/blog/backend/internal/pkg/metrics"
 	"github.com/D4wn3R/blog/backend/internal/pkg/response"
 )
 
@@ -19,13 +20,17 @@ import (
 //	公开 API → 文章/分类/标签/归档/动态/友链/关于/评论查看、OAuth 登录
 //	用户 API → 需登录（AuthRequired）：发表评论、删自己评论、绑定 OAuth
 //	管理 API → 需管理员（AuthRequired + AdminRequired）：文章/动态/友链/关于/上传 CRUD
-func New(cfg *config.Config, h *handler.Handler) *gin.Engine {
+func New(cfg *config.Config, h *handler.Handler, metricsReg *metrics.Registry) *gin.Engine {
 	r := gin.New()
 	// 顺序：链路追踪最先（span 覆盖整个请求生命周期）→ RequestID → Recovery → 访问日志 → CORS
 	// 仅在启用追踪时挂载：关闭时连中间件都不注册，保持零开销
 	if cfg.Obs.Enabled {
 		r.Use(otelgin.Middleware(cfg.Obs.ServiceName, otelgin.WithFilter(traceableRequest)))
 	}
+	// 指标中间件：读 c.FullPath() 必须在路由匹配后（c.Next() 返回时）取值，
+	// 与追踪开关无关，故独立注册；未启用指标时为 no-op
+	_, httpMetrics := metrics.NewHTTPMetrics(metricsReg)
+	r.Use(httpMetrics)
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Recovery())
 	r.Use(middleware.Logger())
@@ -34,6 +39,9 @@ func New(cfg *config.Config, h *handler.Handler) *gin.Engine {
 	// 探针（规范 §5：/healthz 存活 + /readyz 就绪，供负载均衡/容器编排；/api/health 为历史契约保留）
 	r.GET("/healthz", h.Health)
 	r.GET("/readyz", h.Ready)
+
+	// Prometheus 抓取端点：未启用指标时返回 404，路由可无条件注册
+	r.GET("/metrics", metricsReg.Handler())
 
 	// 未匹配路由统一 JSON 兜底（docs/API/README.md：code 40400）
 	r.NoRoute(func(c *gin.Context) {
