@@ -227,11 +227,11 @@ jobs:
         run: |
           for _ in $(seq 1 12); do
             status=$(ssh -F "$KEY_CONFIG" txy \
-              "docker inspect -f '{{.State.Health.Status}}' blog-nginx 2>/dev/null" || true)
+              "docker inspect -f '{{.State.Health.Status}}' nginx 2>/dev/null" || true)
             [ "$status" = "healthy" ] && { echo "nginx healthy"; exit 0; }
             sleep 5
           done
-          echo "nginx 未就绪，排障：ssh txy 'docker logs --tail 50 blog-nginx'" >&2
+          echo "nginx 未就绪，排障：ssh txy 'docker logs --tail 50 nginx'" >&2
           exit 1
 
       - name: 公网冒烟（txy → redrock 全链路）
