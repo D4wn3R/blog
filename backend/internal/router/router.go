@@ -24,8 +24,8 @@ func New(cfg *config.Config, h *handler.Handler, metricsReg *metrics.Registry) *
 	r := gin.New()
 	// 顺序：链路追踪最先（span 覆盖整个请求生命周期）→ RequestID → Recovery → 访问日志 → CORS
 	// 仅在启用追踪时挂载：关闭时连中间件都不注册，保持零开销
-	if cfg.Obs.Enabled {
-		r.Use(otelgin.Middleware(cfg.Obs.ServiceName, otelgin.WithFilter(traceableRequest)))
+	if cfg.Tracing.Enabled {
+		r.Use(otelgin.Middleware(cfg.Tracing.ServiceName, otelgin.WithFilter(traceableRequest)))
 	}
 	// 指标中间件：读 c.FullPath() 必须在路由匹配后（c.Next() 返回时）取值，
 	// 与追踪开关无关，故独立注册；未启用指标时为 no-op

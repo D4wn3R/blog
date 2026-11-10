@@ -19,7 +19,7 @@ type Config struct {
 	OAuth   OAuth
 	CORS    CORS
 	Admin   Admin
-	Obs     Obs
+	Tracing Tracing
 	Metrics Metrics
 }
 
@@ -80,21 +80,21 @@ type CORS struct {
 	AllowedOrigins []string
 }
 
-// Obs 可观测性配置（OpenTelemetry 链路追踪）
+// Tracing 链路追踪配置（OpenTelemetry）
 // Enabled 为 false 时后端不产生任何 span，也不向 Endpoint 发起连接——
 // 本地开发或未部署 Jaeger 的环境保持零开销、零依赖
-type Obs struct {
-	// Enabled 是否启用链路追踪导出（env：BLOG_OBS_ENABLED）
+type Tracing struct {
+	// Enabled 是否启用链路追踪导出（env：BLOG_TRACING_ENABLED）
 	Enabled bool
-	// Endpoint OTLP gRPC 端点 host:port（env：BLOG_OBS_ENDPOINT）
+	// Endpoint OTLP gRPC 端点 host:port（env：BLOG_TRACING_ENDPOINT）
 	Endpoint string
-	// Insecure 跳过 TLS 明文传输，仅限内网/隧道（env：BLOG_OBS_INSECURE）
+	// Insecure 跳过 TLS 明文传输，仅限内网/隧道（env：BLOG_TRACING_INSECURE）
 	Insecure bool
-	// SampleRatio 头部采样比例 0~1，1 表示全采（env：BLOG_OBS_SAMPLE_RATIO）
+	// SampleRatio 头部采样比例 0~1，1 表示全采（env：BLOG_TRACING_SAMPLE_RATIO）
 	SampleRatio float64
-	// ServiceName 上报的服务名，Jaeger 按此聚合（env：BLOG_OBS_SERVICE_NAME）
+	// ServiceName 上报的服务名，Jaeger 按此聚合（env：BLOG_TRACING_SERVICE_NAME）
 	ServiceName string
-	// Environment 部署环境标识，如 debug/release（env：BLOG_OBS_ENVIRONMENT）
+	// Environment 部署环境标识，如 debug/release（env：BLOG_TRACING_ENVIRONMENT）
 	Environment string
 }
 
@@ -106,7 +106,7 @@ type Admin struct {
 }
 
 // Metrics Prometheus 指标配置
-// 与 Obs 独立开关：链路追踪推给 Jaeger（push），指标由 Prometheus 来抓（pull），
+// 与 Tracing 独立开关：链路追踪推给 Jaeger（push），指标由 Prometheus 来抓（pull），
 // 两者可以只开其中一个
 type Metrics struct {
 	// Enabled 是否启用指标采集与 /metrics 端点（env：BLOG_METRICS_ENABLED）

@@ -26,9 +26,9 @@ import (
 	"github.com/D4wn3R/blog/backend/internal/model"
 	"github.com/D4wn3R/blog/backend/internal/pkg/metrics"
 	"github.com/D4wn3R/blog/backend/internal/pkg/oauth"
-	"github.com/D4wn3R/blog/backend/internal/pkg/obs"
 	"github.com/D4wn3R/blog/backend/internal/pkg/redis"
 	"github.com/D4wn3R/blog/backend/internal/pkg/rustfs"
+	"github.com/D4wn3R/blog/backend/internal/pkg/tracing"
 	"github.com/D4wn3R/blog/backend/internal/repository"
 	"github.com/D4wn3R/blog/backend/internal/router"
 	"github.com/D4wn3R/blog/backend/internal/service"
@@ -70,15 +70,15 @@ func run(configPath string, migrate bool) error {
 		return fmt.Errorf("加载配置失败: %w", err)
 	}
 
-	// 可观测性：链路追踪初始化（Enabled=false 时为空 Provider，不建立任何连接）。
+	// 链路追踪初始化（Enabled=false 时为空 Provider，不建立任何连接）。
 	// 必须在 gorm.Open 之前完成——GORM 插件从全局 TracerProvider 取 tracer
-	telemetry, err := obs.New(context.Background(), obs.Config{
-		Enabled:     cfg.Obs.Enabled,
-		Endpoint:    cfg.Obs.Endpoint,
-		Insecure:    cfg.Obs.Insecure,
-		SampleRatio: cfg.Obs.SampleRatio,
-		ServiceName: cfg.Obs.ServiceName,
-		Environment: cfg.Obs.Environment,
+	tracer, err := tracing.New(context.Background(), tracing.Config{
+		Enabled:     cfg.Tracing.Enabled,
+		Endpoint:    cfg.Tracing.Endpoint,
+		Insecure:    cfg.Tracing.Insecure,
+		SampleRatio: cfg.Tracing.SampleRatio,
+		ServiceName: cfg.Tracing.ServiceName,
+		Environment: cfg.Tracing.Environment,
 	})
 	if err != nil {
 		return fmt.Errorf("初始化链路追踪失败: %w", err)
@@ -88,7 +88,7 @@ func run(configPath string, migrate bool) error {
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := telemetry.Shutdown(shutdownCtx); err != nil {
+		if err := tracer.Shutdown(shutdownCtx); err != nil {
 			slog.Warn("关闭链路追踪失败", "err", err)
 		}
 	}()
@@ -108,9 +108,9 @@ func run(configPath string, migrate bool) error {
 	// 本阶段只做 trace，避免向全局 MeterProvider 注册无用指标。
 	// 选 uptrace/otelgorm 而非 gorm.io/plugin/opentelemetry：后者在非测试代码里
 	// 硬 import ClickHouse/Postgres 驱动，会给本项目凭空带入两个用不到的驱动
-	if telemetry.Enabled() {
+	if tracer.Enabled() {
 		if err := db.Use(otelgorm.NewPlugin(
-			otelgorm.WithTracerProvider(telemetry.TracerProvider()),
+			otelgorm.WithTracerProvider(tracer.TracerProvider()),
 			otelgorm.WithoutMetrics(),
 		)); err != nil {
 			return fmt.Errorf("注册 GORM 链路追踪插件失败: %w", err)
@@ -153,8 +153,8 @@ func run(configPath string, migrate bool) error {
 
 	// Redis 埋点：仅在启用追踪时挂钩子，关闭时保持零额外开销
 	var redisOpts []redis.Option
-	if telemetry.Enabled() {
-		redisOpts = append(redisOpts, redis.WithTracerProvider(telemetry.TracerProvider()))
+	if tracer.Enabled() {
+		redisOpts = append(redisOpts, redis.WithTracerProvider(tracer.TracerProvider()))
 	}
 	rdb, err := redis.New(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB, redisOpts...)
 	if err != nil {
