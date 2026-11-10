@@ -1,14 +1,17 @@
 # 变量从同目录 .env 展开（模板见 .env.example），.env 不入库
 #
-# TODO(obs): 所有服务均未配置日志轮转。默认 json-file 驱动不限大小，
-# 一旦异常刷日志（如连接失败重试）会吃满磁盘——redrock 曾仅剩 9.2G。
-# 应为每个服务补 logging.options.max-size=10m + max-file=3。
+# 日志轮转：所有服务统一 json-file 10m × 3，防异常刷日志写满磁盘。
 # 注：生产生效的是服务器侧 compose（redrock docker-compose.server.yml /
 # txy docker-compose.nginx.yml），此处只是本地开发形态。
 services:
   mysql:
     image: mysql:8
     container_name: blog-mysql
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: no
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在根目录 .env 中设置 MYSQL_ROOT_PASSWORD}
@@ -29,6 +32,11 @@ services:
   redis:
     image: redis:7-alpine
     container_name: blog-redis
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: no
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?请在根目录 .env 中设置 REDIS_PASSWORD}"]
     environment:
@@ -48,6 +56,11 @@ services:
   rustfs:
     image: rustfs/rustfs:1.0.3
     container_name: blog-rustfs
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: no
     # 镜像 entrypoint 默认起 server，数据目录由 RUSTFS_VOLUMES 指定（默认 /data）
     environment:
@@ -71,6 +84,11 @@ services:
   backend:
     build: ./backend
     container_name: blog-backend
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: no
     depends_on:
       mysql:
@@ -109,6 +127,11 @@ services:
   frontend:
     build: ./frontend
     container_name: blog-nginx
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: no
     depends_on:
       backend:

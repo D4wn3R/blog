@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // attemptKey 重试序号的 context 键：retryTransport 每次重试递增，
@@ -54,16 +56,31 @@ func isRotatingHost(host string) bool {
 // 会挤占 Exchange 的 20s 总预算，DNS 兜底反而轮不到
 const _maxIPAttempts = 2
 
+// tracedTransport 给出站 HTTP 加 span，必须包在 retryTransport.base 之下
+// （即包住底层 *http.Transport）而不是整条链路最外层：retryTransport 每次重试
+// 都会重新 RoundTrip，包在 base 才能让每次重试各自成一个 span——
+// 排查 IP 干扰（stage=exchange 卡 ~22s）要看的正是「第几次重试才成功 / 哪一次
+// 卡在 TLS 握手」；包在最外层只剩一个合并后的大 span，重试细节全丢失。
+func tracedTransport(inner http.RoundTripper) http.RoundTripper {
+	return otelhttp.NewTransport(inner,
+		// 默认命名全是 "HTTP GET"，同名 span 扎堆；带上 host 才分得清是
+		// github.com 还是 api.github.com 上的哪次调用
+		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			return r.Method + " " + r.URL.Host
+		}),
+	)
+}
+
 // githubClient 为 github.com 构造 HTTP 客户端：前 len(ips) 次尝试轮换候选 IP，
 // 最后一次回退系统 DNS（tries=len(ips) → len(ips)+1 次尝试）。
-// ips 为空直接走共享 _httpClient（纯 DNS，本地开发场景）
+// ips 为空直接走共享客户端（纯 DNS，本地开发场景）
 //
-// TODO(obs): 出站 HTTP 未埋点——Transport 应包一层 otelhttp.NewTransport，
-// 否则调 GitHub 的耗时在 Jaeger 里不可见。曾踩过的 IP 干扰问题（stage=exchange 卡 ~22s）
-// 目前只能从根 span 耗时推断，看不到具体卡在哪个出站请求。
+// 客户端按需现构造而非包级变量：otelhttp 的 span 依赖全局 TracerProvider，
+// 现构造才能保证运行时（含测试里 otel.SetTracerProvider 注入后）拿到当前 provider。
+// 并发与连接复用不受影响——底层复用 http.DefaultTransport 的连接池。
 func githubClient(ips []string) *http.Client {
 	if len(ips) == 0 {
-		return _httpClient
+		return sharedHTTPClient()
 	}
 	if len(ips) > _maxIPAttempts {
 		ips = ips[:_maxIPAttempts]
@@ -72,11 +89,11 @@ func githubClient(ips []string) *http.Client {
 		Timeout: 18 * time.Second, // 兜底总限（3 次 × 5s + 重试退避，受 Exchange ctx 20s 约束）
 		Transport: &retryTransport{
 			tries: len(ips), // IP 尝试 + 最后一次 DNS 兜底
-			base: &http.Transport{
+			base: tracedTransport(&http.Transport{
 				DialContext:           RotatingDialer(ips, 5*time.Second),
 				TLSHandshakeTimeout:   5 * time.Second,
 				ResponseHeaderTimeout: 5 * time.Second,
-			},
+			}),
 		},
 	}
 }

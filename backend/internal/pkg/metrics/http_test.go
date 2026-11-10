@@ -139,6 +139,83 @@ func TestHTTPMetricsUnmatchedRoute(t *testing.T) {
 	}
 }
 
+func TestHTTPMetricsCountsOnlyServerErrors(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	reg := newTestRegistry(t)
+	_, mw := NewHTTPMetrics(reg)
+
+	r := gin.New()
+	r.Use(mw)
+	r.GET("/ok", func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/boom", func(c *gin.Context) { c.Status(http.StatusInternalServerError) })
+
+	for _, path := range []string{"/ok", "/ok", "/boom"} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+	}
+
+	// 2 次 200 + 1 次 500 → 错误计数器只有 1 条 5xx 序列，标签落到具体路由与状态码
+	want := `
+# HELP blog_http_errors_total HTTP 服务端错误（5xx）总数，按路由/状态码分类
+# TYPE blog_http_errors_total counter
+blog_http_errors_total{route="/boom",status="500"} 1
+`
+	err := testutil.GatherAndCompare(
+		reg.reg, strings.NewReader(want), "blog_http_errors_total")
+	if err != nil {
+		t.Fatalf("200 不应计入错误计数器、500 应计 1 次: %v", err)
+	}
+}
+
+func TestHTTPMetricsIgnoresClientErrors(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	reg := newTestRegistry(t)
+	_, mw := NewHTTPMetrics(reg)
+
+	r := gin.New()
+	r.Use(mw)
+	r.GET("/bad", func(c *gin.Context) { c.Status(http.StatusBadRequest) })
+
+	for range 2 {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/bad", nil))
+	}
+
+	// 4xx 属于客户端问题，不纳入错误口径 → 一条序列都不该有
+	count, err := testutil.GatherAndCount(reg.reg, "blog_http_errors_total")
+	if err != nil {
+		t.Fatalf("采集指标失败: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("4xx 不应计入错误计数器，实际产生 %d 条序列", count)
+	}
+}
+
+func TestHTTPMetricsSkipsProbesForErrors(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	reg := newTestRegistry(t)
+	_, mw := NewHTTPMetrics(reg)
+
+	r := gin.New()
+	r.Use(mw)
+	// 探针即使返回 500 也不该进业务指标
+	r.GET("/api/health", func(c *gin.Context) { c.Status(http.StatusInternalServerError) })
+	r.GET("/healthz", func(c *gin.Context) { c.Status(http.StatusInternalServerError) })
+
+	for _, path := range []string{"/api/health", "/healthz"} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+	}
+
+	count, err := testutil.GatherAndCount(reg.reg, "blog_http_errors_total")
+	if err != nil {
+		t.Fatalf("采集指标失败: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("探针不应计入错误计数器，实际产生 %d 条序列", count)
+	}
+}
+
 func TestHandlerDisabledReturns404(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	reg := New(Config{Enabled: false})

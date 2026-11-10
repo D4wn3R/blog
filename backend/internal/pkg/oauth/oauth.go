@@ -66,10 +66,22 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return nil, lastErr
 }
 
-// _httpClient 调第三方 OAuth API 的共享客户端。
+// sharedHTTPClient 调第三方 OAuth API 的共享客户端。
 // 第三方服务可用性不受我方控制，必须带超时，防止挂起请求无限堆积 goroutine；
-// 10s 单次超时 + 网络错误重试 2 次（见 retryTransport）
-var _httpClient = &http.Client{Timeout: 10 * time.Second, Transport: &retryTransport{tries: 2}}
+// 10s 单次超时 + 网络错误重试 2 次（见 retryTransport）。
+// 出站埋点同样包在 retryTransport.base 之下（见 tracedTransport）：
+// 每次重试一个 span，底层复用 http.DefaultTransport 的连接池。
+// 用函数而非包级变量：otelhttp 的 span 取自当前全局 TracerProvider，
+// 包级变量会在初始化期固化解析结果，测试注入 provider 后就看不到 span 了。
+func sharedHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &retryTransport{
+			tries: 2,
+			base:  tracedTransport(http.DefaultTransport),
+		},
+	}
+}
 
 // sanitizeURLError 剥离 *url.Error 中的完整 URL：授权/交换请求 URL 可能携带
 // client_id / redirect_uri 等参数，*url.Error.Error() 会原样带出完整 URL，落日志即泄漏。

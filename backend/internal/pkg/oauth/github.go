@@ -15,7 +15,7 @@ import (
 type GitHub struct {
 	cfg *oauth2.Config
 	// client 带 IP 轮换 dialer 的专用客户端（exchange/userinfo/emails 共用）；
-	// ips 为空时退回共享 _httpClient（本地开发无干扰场景）
+	// ips 为空时退回共享客户端 sharedHTTPClient（本地开发无干扰场景）
 	client *http.Client
 }
 

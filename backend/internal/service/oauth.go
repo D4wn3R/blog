@@ -7,6 +7,9 @@ import (
 	"net/url"
 
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/D4wn3R/blog/backend/internal/model"
 	"github.com/D4wn3R/blog/backend/internal/pkg/logctx"
@@ -14,6 +17,9 @@ import (
 	"github.com/D4wn3R/blog/backend/internal/pkg/randx"
 	"github.com/D4wn3R/blog/backend/internal/repository"
 )
+
+// _tracerName 业务层手写 span 的 instrumentation scope 名：Jaeger 里按它筛业务 span
+const _tracerName = "github.com/D4wn3R/blog/backend/internal/service"
 
 // OAuthService OAuth 登录/绑定子服务（#1~#4）
 type OAuthService struct {
@@ -115,13 +121,21 @@ func (s *OAuthService) Callback(ctx context.Context, pathProvider, cbError, code
 		// state 校验通过但注册表无此平台：理论不可达（state 只为已注册平台生成），兜底
 		return oauthFailedQuery()
 	}
-	// Exchange 调平台 API 换用户信息（10s 超时），网络等基础设施异常收敛 oauth_failed
-	//
-	// TODO(obs): 业务层零 span——OAuth 交换是最该手写 span 的边界之一。应在此起 span
-	// 并 SetAttributes(provider, stage) + 失败时 RecordError/SetStatus(Error)，
-	// 否则「登录失败」只能靠日志文本判断，Jaeger 里看到的永远是 200 的根 span
+	// Exchange 调平台 API 换用户信息（10s 超时），网络等基础设施异常收敛 oauth_failed。
+	// 回调对外恒 302、根 span 恒 200，失败只用日志文本判断等于在 Jaeger 里不可见；
+	// 故手写 span 包住这一步，span 名带平台名便于按平台检索耗时与错误分布。
+	// 追踪未启用时全局 provider 是 no-op，这里无需判空；失败归属由下方 RecordError 标注
+	ctx, span := otel.Tracer(_tracerName).Start(ctx, "oauth."+pathProvider+".exchange")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("oauth.provider", pathProvider),
+		attribute.String("oauth.stage", "exchange"),
+	)
+
 	info, err := p.Exchange(ctx, code)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "exchange failed")
 		logCallbackErr(ctx, pathProvider, "exchange", err)
 		return oauthFailedQuery()
 	}
