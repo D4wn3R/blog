@@ -57,6 +57,10 @@ const _maxIPAttempts = 2
 // githubClient 为 github.com 构造 HTTP 客户端：前 len(ips) 次尝试轮换候选 IP，
 // 最后一次回退系统 DNS（tries=len(ips) → len(ips)+1 次尝试）。
 // ips 为空直接走共享 _httpClient（纯 DNS，本地开发场景）
+//
+// TODO(obs): 出站 HTTP 未埋点——Transport 应包一层 otelhttp.NewTransport，
+// 否则调 GitHub 的耗时在 Jaeger 里不可见。曾踩过的 IP 干扰问题（stage=exchange 卡 ~22s）
+// 目前只能从根 span 耗时推断，看不到具体卡在哪个出站请求。
 func githubClient(ips []string) *http.Client {
 	if len(ips) == 0 {
 		return _httpClient
