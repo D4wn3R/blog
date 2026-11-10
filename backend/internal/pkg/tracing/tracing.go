@@ -1,7 +1,10 @@
-// Package obs OpenTelemetry 链路追踪初始化：TracerProvider 装配、OTLP 导出与优雅关闭。
+// Package tracing OpenTelemetry 链路追踪初始化：TracerProvider 装配、OTLP 导出与优雅关闭。
 // 设计约定：New 在 Enabled=false 时返回空操作 Provider（各方法均为 no-op），
 // 调用方无需在业务代码里判断开关状态——埋点代码可以无条件调用。
-package obs
+//
+// 包名用 tracing 而非 trace：本包内部 import 了 go.opentelemetry.io/otel/trace，
+// 同名会让 trace.TracerProvider 这类引用产生「是本包的还是 otel 的」歧义。
+package tracing
 
 import (
 	"context"
@@ -16,7 +19,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Config 追踪初始化参数（由 config.Obs 转换而来）
+// Config 追踪初始化参数（由 config.Tracing 转换而来）
 type Config struct {
 	Enabled     bool
 	Endpoint    string

@@ -39,7 +39,7 @@ cors:
 admin:
   github_id: 0 # GitHub 数字用户 ID（curl https://api.github.com/users/<用户名> 取 id）；生产环境用 BLOG_ADMIN_GITHUB_ID 覆盖
 
-obs:
+tracing:
   enabled: false # 启用后按 OTel 埋点导出 trace；本地无 Jaeger 时保持关闭
   endpoint: "127.0.0.1:4317" # OTLP gRPC 端点（Jaeger v2 默认 4317）
   insecure: true # 内网/隧道明文，无需 TLS
