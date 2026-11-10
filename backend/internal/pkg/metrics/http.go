@@ -18,6 +18,10 @@ var _untrackedPaths = map[string]struct{}{
 }
 
 // HTTPMetrics 持有 HTTP 层指标
+//
+// TODO(obs): 5xx 无独立计数器——现在只能靠 status=~"5.." 正则筛选，
+// 告警规则写起来绕。应补 blog_http_errors_total{route,status}，
+// 或在中间件里按状态码区间分桶计数
 type HTTPMetrics struct {
 	requests *prometheus.CounterVec
 	duration *prometheus.HistogramVec

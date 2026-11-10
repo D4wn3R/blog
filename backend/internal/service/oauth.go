@@ -116,6 +116,10 @@ func (s *OAuthService) Callback(ctx context.Context, pathProvider, cbError, code
 		return oauthFailedQuery()
 	}
 	// Exchange 调平台 API 换用户信息（10s 超时），网络等基础设施异常收敛 oauth_failed
+	//
+	// TODO(obs): 业务层零 span——OAuth 交换是最该手写 span 的边界之一。应在此起 span
+	// 并 SetAttributes(provider, stage) + 失败时 RecordError/SetStatus(Error)，
+	// 否则「登录失败」只能靠日志文本判断，Jaeger 里看到的永远是 200 的根 span
 	info, err := p.Exchange(ctx, code)
 	if err != nil {
 		logCallbackErr(ctx, pathProvider, "exchange", err)

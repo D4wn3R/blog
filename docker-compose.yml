@@ -1,4 +1,10 @@
 # 变量从同目录 .env 展开（模板见 .env.example），.env 不入库
+#
+# TODO(obs): 所有服务均未配置日志轮转。默认 json-file 驱动不限大小，
+# 一旦异常刷日志（如连接失败重试）会吃满磁盘——redrock 曾仅剩 9.2G。
+# 应为每个服务补 logging.options.max-size=10m + max-file=3。
+# 注：生产生效的是服务器侧 compose（redrock docker-compose.server.yml /
+# txy docker-compose.nginx.yml），此处只是本地开发形态。
 services:
   mysql:
     image: mysql:8
