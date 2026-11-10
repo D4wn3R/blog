@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"net/http"
 	"strconv"
 	"time"
 
@@ -18,13 +19,14 @@ var _untrackedPaths = map[string]struct{}{
 }
 
 // HTTPMetrics 持有 HTTP 层指标
-//
-// TODO(obs): 5xx 无独立计数器——现在只能靠 status=~"5.." 正则筛选，
-// 告警规则写起来绕。应补 blog_http_errors_total{route,status}，
-// 或在中间件里按状态码区间分桶计数
 type HTTPMetrics struct {
 	requests *prometheus.CounterVec
 	duration *prometheus.HistogramVec
+	// errors 只统计服务端错误（status >= 500）。单独成指标是为了告警规则能
+	// 直接写 blog_http_errors_total，不必对 requests_total 用 status=~"5.."
+	// 正则筛选；4xx 属于客户端问题（参数错、未登录、路由不存在），不纳入
+	// 错误口径，否则告警会被正常业务噪声刷响
+	errors   *prometheus.CounterVec
 	inFlight prometheus.Gauge
 	enabled  bool
 }
@@ -61,10 +63,16 @@ func NewHTTPMetrics(reg *Registry) (*HTTPMetrics, gin.HandlerFunc) {
 			Name:      "requests_in_flight",
 			Help:      "当前正在处理的请求数",
 		}),
+		errors: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: "blog",
+			Subsystem: "http",
+			Name:      "errors_total",
+			Help:      "HTTP 服务端错误（5xx）总数，按路由/状态码分类",
+		}, []string{"route", "status"}),
 		enabled: true,
 	}
 
-	reg.reg.MustRegister(m.requests, m.duration, m.inFlight)
+	reg.reg.MustRegister(m.requests, m.duration, m.inFlight, m.errors)
 
 	return m, func(c *gin.Context) {
 		if _, skip := _untrackedPaths[c.Request.URL.Path]; skip {
@@ -85,10 +93,16 @@ func NewHTTPMetrics(reg *Registry) (*HTTPMetrics, gin.HandlerFunc) {
 			route = "unmatched"
 		}
 		method := c.Request.Method
-		status := strconv.Itoa(c.Writer.Status())
+		statusCode := c.Writer.Status()
+		status := strconv.Itoa(statusCode)
 
 		m.requests.WithLabelValues(method, route, status).Inc()
 		m.duration.WithLabelValues(method, route).Observe(time.Since(start).Seconds())
+
+		// 只有 5xx 计入错误计数器；探针已在函数开头跳过，此处无需重复判断
+		if statusCode >= http.StatusInternalServerError {
+			m.errors.WithLabelValues(route, status).Inc()
+		}
 	}
 }
 

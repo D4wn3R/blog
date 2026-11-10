@@ -10,7 +10,7 @@ func TestGitHubClientRetryBudget(t *testing.T) {
 		ips  []string
 		want int // retryTransport.tries，实际尝试次数 = tries+1
 	}{
-		{"dns only", nil, 2}, // 复用共享 _httpClient：纯 DNS 重试 2 次
+		{"dns only", nil, 2}, // 复用共享 sharedHTTPClient：纯 DNS 重试 2 次
 		{"one ip then dns", []string{"192.0.2.1"}, 1},
 		{"two ips then dns", []string{"192.0.2.1", "192.0.2.2"}, 2},
 		{"extra ips capped", []string{"192.0.2.1", "192.0.2.2", "192.0.2.3"}, 2},
