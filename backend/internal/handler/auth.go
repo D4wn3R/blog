@@ -128,9 +128,9 @@ func (h *Handler) UserMe(c *gin.Context) {
 	response.OK(c, me)
 }
 
-// UserUnbindOAuth 解绑（#9）
+// UserUnbindOAuth 解绑 GitHub（#9）：站点唯一登录方式，路由固定 /user/oauth/github
 func (h *Handler) UserUnbindOAuth(c *gin.Context) {
-	if err := h.svc.User.Unbind(c.Request.Context(), middleware.GetUserID(c), c.Param("provider")); err != nil {
+	if err := h.svc.User.Unbind(c.Request.Context(), middleware.GetUserID(c)); err != nil {
 		h.fail(c, err)
 		return
 	}

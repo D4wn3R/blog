@@ -22,7 +22,8 @@ type UserDTO struct {
 	Role     string `json:"role"`
 }
 
-// OAuthAccountDTO 绑定信息白名单：openid/user_id/created_at 不得漏出（spec §7.1）
+// OAuthAccountDTO 绑定信息白名单：openid/user_id/created_at 不得漏出（spec §7.1）；
+// provider 固定输出 github（站点唯一登录方式，数据库不再存平台维度）
 type OAuthAccountDTO struct {
 	Provider string `json:"provider"`
 	Nickname string `json:"nickname"`
@@ -64,7 +65,7 @@ func (s *UserService) Me(ctx context.Context, userID uint64) (*MeDTO, error) {
 	accounts := make([]OAuthAccountDTO, 0, len(list))
 	for i := range list {
 		accounts = append(accounts, OAuthAccountDTO{
-			Provider: list[i].Provider,
+			Provider: _githubProvider,
 			Nickname: list[i].Nickname,
 			Avatar:   list[i].Avatar,
 		})
@@ -72,13 +73,10 @@ func (s *UserService) Me(ctx context.Context, userID uint64) (*MeDTO, error) {
 	return &MeDTO{UserDTO: *toUserDTO(user), OAuthAccounts: accounts}, nil
 }
 
-// Unbind 解绑（#9）：事务 + users 行锁串行化该用户的解绑操作，至少保留一个登录方式；
+// Unbind 解绑 GitHub（#9）：事务 + users 行锁串行化该用户的解绑操作，至少保留一个登录方式；
 // 物理删除（恢复绑定 = 重新授权重插，语义等价）；解绑不踢线，已签发 token 继续有效
-func (s *UserService) Unbind(ctx context.Context, userID uint64, provider string) error {
-	if _, ok := s.svc.Reg.Get(provider); !ok {
-		return errNotFound("不支持的登录方式")
-	}
-	err := s.svc.Repo.UnbindOAuthAccount(ctx, userID, provider)
+func (s *UserService) Unbind(ctx context.Context, userID uint64) error {
+	err := s.svc.Repo.UnbindGitHubAccount(ctx, userID)
 	switch {
 	case err == nil:
 		return nil

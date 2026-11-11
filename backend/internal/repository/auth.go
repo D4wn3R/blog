@@ -17,10 +17,10 @@ import (
 // 唯一索引冲突（MySQL 1062）按业务语义分类：并发正确性由唯一索引兜底（spec 总则 2），
 // 应用层只负责把冲突翻译成语义化错误，供 service 分支处理竞态
 var (
-	// ErrDupProviderBinding uk_provider_pid：(provider, provider_id) 已被绑定
-	ErrDupProviderBinding = errors.New("该第三方账号已被绑定")
-	// ErrDupUserBinding uk_user_provider：该用户已绑定该平台
-	ErrDupUserBinding = errors.New("该用户已绑定该平台")
+	// ErrDupGitHubBinding uk_oauth_accounts_github_id：该 GitHub 账号已被绑定
+	ErrDupGitHubBinding = errors.New("该 GitHub 账号已被绑定")
+	// ErrDupUserBinding uk_oauth_accounts_user_id：该用户已绑定 GitHub（站点唯一登录方式）
+	ErrDupUserBinding = errors.New("该用户已绑定 GitHub 账号")
 	// ErrDupUsername users.username 唯一索引冲突
 	ErrDupUsername = errors.New("用户名已存在")
 	// ErrDupSlug uk_articles_slug：文章 slug 已被占用
@@ -63,10 +63,10 @@ func (r *Repository) ExistsUsername(ctx context.Context, username string) (bool,
 	return cnt > 0, nil
 }
 
-// GetUserByProvider 查 (provider, provider_id) 绑定的用户；未绑定返回 (nil, nil)
-func (r *Repository) GetUserByProvider(ctx context.Context, provider, providerID string) (*model.User, error) {
+// GetUserByGitHubID 查 github_id 绑定的用户；未绑定返回 (nil, nil)
+func (r *Repository) GetUserByGitHubID(ctx context.Context, githubID string) (*model.User, error) {
 	var acc model.OAuthAccount
-	err := r.db.WithContext(ctx).Where("provider = ? AND provider_id = ?", provider, providerID).First(&acc).Error
+	err := r.db.WithContext(ctx).Where("github_id = ?", githubID).First(&acc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -107,10 +107,10 @@ func (r *Repository) CreateUserWithAccount(ctx context.Context, user *model.User
 	return classifyDup(err)
 }
 
-// GetOAuthAccountByProviderID 按 (provider, provider_id) 查绑定记录；不存在返回 (nil, nil)
-func (r *Repository) GetOAuthAccountByProviderID(ctx context.Context, provider, providerID string) (*model.OAuthAccount, error) {
+// GetOAuthAccountByGitHubID 按 github_id 查绑定记录；不存在返回 (nil, nil)
+func (r *Repository) GetOAuthAccountByGitHubID(ctx context.Context, githubID string) (*model.OAuthAccount, error) {
 	var acc model.OAuthAccount
-	err := r.db.WithContext(ctx).Where("provider = ? AND provider_id = ?", provider, providerID).First(&acc).Error
+	err := r.db.WithContext(ctx).Where("github_id = ?", githubID).First(&acc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -120,10 +120,10 @@ func (r *Repository) GetOAuthAccountByProviderID(ctx context.Context, provider, 
 	return &acc, nil
 }
 
-// GetUserOAuthAccount 按 (user_id, provider) 查绑定记录；不存在返回 (nil, nil)
-func (r *Repository) GetUserOAuthAccount(ctx context.Context, userID uint64, provider string) (*model.OAuthAccount, error) {
+// GetUserGitHubAccount 按 user_id 查绑定记录（一个用户至多一条）；不存在返回 (nil, nil)
+func (r *Repository) GetUserGitHubAccount(ctx context.Context, userID uint64) (*model.OAuthAccount, error) {
 	var acc model.OAuthAccount
-	err := r.db.WithContext(ctx).Where("user_id = ? AND provider = ?", userID, provider).First(&acc).Error
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&acc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -133,8 +133,8 @@ func (r *Repository) GetUserOAuthAccount(ctx context.Context, userID uint64, pro
 	return &acc, nil
 }
 
-// CreateOAuthAccount 插入绑定记录，唯一索引冲突分类为业务错误返回
-func (r *Repository) CreateOAuthAccount(ctx context.Context, account *model.OAuthAccount) error {
+// CreateGitHubAccount 插入绑定记录，唯一索引冲突分类为业务错误返回
+func (r *Repository) CreateGitHubAccount(ctx context.Context, account *model.OAuthAccount) error {
 	return classifyDup(r.db.WithContext(ctx).Create(account).Error)
 }
 
@@ -145,18 +145,19 @@ func (r *Repository) ListOAuthAccountsByUser(ctx context.Context, userID uint64)
 	return accounts, err
 }
 
-// UnbindOAuthAccount 事务 + 行锁解绑（spec §4 #9）：
+// UnbindGitHubAccount 事务 + 行锁解绑（spec §4 #9）：
 // 先锁 users 行（该用户所有解绑操作在此串行化，固定先 users 后 oauth_accounts 零死锁），
-// FOR UPDATE 当前读确保 COUNT 看到并发事务提交后的真实值，绕开 REPEATABLE READ 快照陷阱
-func (r *Repository) UnbindOAuthAccount(ctx context.Context, userID uint64, provider string) error {
+// FOR UPDATE 当前读确保 COUNT 看到并发事务提交后的真实值，绕开 REPEATABLE READ 快照陷阱。
+// GitHub 是唯一登录方式，正常用户必被"至少保留一个登录方式"拦下；保留该语义以防未来放开多登录方式
+func (r *Repository) UnbindGitHubAccount(ctx context.Context, userID uint64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 锁 users 行：该用户所有解绑操作在此串行化
 		if err := tx.Exec("SELECT id FROM users WHERE id = ? FOR UPDATE", userID).Error; err != nil {
 			return err
 		}
-		// 未绑定该平台
+		// 未绑定 GitHub
 		var acc model.OAuthAccount
-		err := tx.Where("user_id = ? AND provider = ?", userID, provider).First(&acc).Error
+		err := tx.Where("user_id = ?", userID).First(&acc).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrNotBound
 		}
@@ -178,21 +179,21 @@ func (r *Repository) UnbindOAuthAccount(ctx context.Context, userID uint64, prov
 
 // SeedAdmin 幂等初始化管理员（-migrate 时调用，spec §8）：
 // githubID 为 0 视为未配置，跳过 seed；
-// 已有 (provider, provider_id) 绑定 → 提权该用户为 admin（若为 user）；
-// 无记录 → 插入 admin 用户 + 对应平台绑定（此后该平台首次登录直接命中绑定，以 admin 身份进入）
+// 已有 github_id 绑定 → 提权该用户为 admin（若为 user）；
+// 无记录 → 插入 admin 用户 + GitHub 绑定（此后 GitHub 首次登录直接命中绑定，以 admin 身份进入）
 func (r *Repository) SeedAdmin(ctx context.Context, githubID uint64) error {
-	if githubID != 0 {
-		return r.seedAdminByBinding(ctx, "github", strconv.FormatUint(githubID, 10))
+	if githubID == 0 {
+		return nil
 	}
-	return nil
+	return r.seedAdminByGitHubID(ctx, strconv.FormatUint(githubID, 10))
 }
 
-// seedAdminByBinding 按 (provider, provider_id) 绑定幂等初始化管理员
-func (r *Repository) seedAdminByBinding(ctx context.Context, provider, providerID string) error {
+// seedAdminByGitHubID 按 github_id 绑定幂等初始化管理员
+func (r *Repository) seedAdminByGitHubID(ctx context.Context, githubID string) error {
 	var acc model.OAuthAccount
-	err := r.db.WithContext(ctx).Where("provider = ? AND provider_id = ?", provider, providerID).First(&acc).Error
+	err := r.db.WithContext(ctx).Where("github_id = ?", githubID).First(&acc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return r.createAdminUser(ctx, provider, providerID)
+		return r.createAdminUser(ctx, githubID)
 	}
 	if err != nil {
 		return err
@@ -203,13 +204,13 @@ func (r *Repository) seedAdminByBinding(ctx context.Context, provider, providerI
 		Update("role", model.RoleAdmin).Error
 }
 
-// createAdminUser 插入 admin 用户 + 平台绑定；username "admin" 被占用时追加 4 位随机 hex 后缀重试
-func (r *Repository) createAdminUser(ctx context.Context, provider, providerID string) error {
+// createAdminUser 插入 admin 用户 + GitHub 绑定；username "admin" 被占用时追加 4 位随机 hex 后缀重试
+func (r *Repository) createAdminUser(ctx context.Context, githubID string) error {
 	username := "admin"
 	var err error
 	for attempt := 0; attempt < 5; attempt++ {
 		user := &model.User{Username: username, Role: model.RoleAdmin, Status: model.UserStatusNormal}
-		account := &model.OAuthAccount{Provider: provider, ProviderID: providerID}
+		account := &model.OAuthAccount{GitHubID: githubID}
 		err = classifyDup(r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			if err := tx.Create(user).Error; err != nil {
 				return err
@@ -238,9 +239,9 @@ func classifyDup(err error) error {
 		return err
 	}
 	switch key := dupKeyName(me); {
-	case strings.Contains(key, "uk_provider_pid"):
-		return fmt.Errorf("%w: %w", ErrDupProviderBinding, err)
-	case strings.Contains(key, "uk_user_provider"):
+	case strings.Contains(key, "uk_oauth_accounts_github_id"):
+		return fmt.Errorf("%w: %w", ErrDupGitHubBinding, err)
+	case strings.Contains(key, "uk_oauth_accounts_user_id"):
 		return fmt.Errorf("%w: %w", ErrDupUserBinding, err)
 	case strings.Contains(key, "uk_articles_slug"):
 		return fmt.Errorf("%w: %w", ErrDupSlug, err)
@@ -257,7 +258,7 @@ func classifyDup(err error) error {
 }
 
 // dupKeyName 从 1062 错误信息中提取命中的索引名
-// （MySQL 8 形如 "Duplicate entry 'x' for key 'oauth_accounts.uk_provider_pid'"，5.x 无表名前缀）
+// （MySQL 8 形如 "Duplicate entry 'x' for key 'oauth_accounts.uk_oauth_accounts_github_id'"，5.x 无表名前缀）
 func dupKeyName(me *mysql.MySQLError) string {
 	const marker = "for key '"
 	i := strings.Index(me.Message, marker)

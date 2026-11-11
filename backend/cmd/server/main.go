@@ -222,8 +222,13 @@ func run(configPath string, migrate bool) error {
 	return nil
 }
 
-// migrateAll 数据库迁移流程（-migrate）：归一旧数据 → 建表 → seed 管理员
+// migrateAll 数据库迁移流程（-migrate）：schema 收敛 → 归一旧数据 → 建表 → seed 管理员
 func migrateAll(repo *repository.Repository, db *gorm.DB, cfg *config.Config) error {
+	// GitHub-only schema 收敛必须在 AutoMigrate 之前：删漂移列、旧唯一索引、
+	// 把 provider_id 重命名为 github_id。数据不满足前置条件时中止，旧 schema 原样保留
+	if err := migrateGitHubOnlySchema(db); err != nil {
+		return err
+	}
 	// 前置归一：journey_time 自 VARCHAR 自由文本迁 DATE 列，YYYY-MM 旧值补 -01（完整日期不受影响，
 	// 列变 DATE 后不再命中，幂等）；否则 ALTER 因值非法报 1292。表不存在（全新部署）时跳过
 	if db.Migrator().HasTable("about_journeys") {
@@ -251,6 +256,11 @@ func migrateAll(repo *repository.Repository, db *gorm.DB, cfg *config.Config) er
 		&model.AboutContact{},
 	); err != nil {
 		return fmt.Errorf("数据库迁移失败: %w", err)
+	}
+	// AutoMigrate 之后复核：旧列确已消失、新唯一索引存在。
+	// 这条检查能兜住"模型少写 column tag 又生成 git_hub_id"这类回归
+	if err := verifyGitHubOnlySchema(db); err != nil {
+		return err
 	}
 	// 幂等初始化管理员（spec §8）：按配置的 GitHub 数字 ID seed，未配置则跳过
 	if err := repo.SeedAdmin(context.Background(), cfg.Admin.GitHubID); err != nil {
