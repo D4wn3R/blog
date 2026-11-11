@@ -536,7 +536,9 @@ export function AdminPostEditor() {
       <div className="flex min-h-0 flex-1">
         <section
           className={
-            viewMode === 'preview' ? 'hidden' : 'flex min-w-0 flex-1 flex-col border-r border-edge'
+            viewMode === 'preview'
+              ? 'hidden'
+              : 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-r border-edge'
           }
         >
           <Suspense
