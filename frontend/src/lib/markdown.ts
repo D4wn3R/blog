@@ -78,14 +78,17 @@ const md = new MarkdownIt({
     katexOptions: { throwOnError: false },
   })
 
-// mermaid 代码块：输出占位容器，挂载后由 mermaid.run() 替换为 SVG
+// mermaid 代码块：输出占位容器，挂载后由 mermaid.run() 替换为 SVG。
+// 普通代码块外包 .md-code-block：复制按钮由页面在 HTML 注入后挂进这个容器，
+// 按钮贴 wrapper 右上角，代码横向滚动时不会跟着跑出视口
 const defaultFence = md.renderer.rules.fence
 md.renderer.rules.fence = (tokens, idx, options, env, self) => {
   const token = tokens[idx]
   if (token.info.trim() === 'mermaid') {
     return `<div class="md-mermaid"><pre class="mermaid">${escapeHtml(token.content)}</pre></div>`
   }
-  return defaultFence?.(tokens, idx, options, env, self) ?? ''
+  const inner = defaultFence?.(tokens, idx, options, env, self) ?? ''
+  return `<div class="md-code-block">${inner}</div>`
 }
 
 // 目录（TOC）：h1/h2/h3 注入稳定 id，并导出目录结构给文章页侧栏

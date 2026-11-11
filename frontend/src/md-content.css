@@ -142,6 +142,63 @@
   font-size: 13px;
   line-height: 1.75;
 }
+/* 代码块 + 复制按钮：wrapper 定位、pre 让出右上角，按钮不随代码横向滚动移动 */
+.md-cyber .md-code-block {
+  position: relative;
+  margin: 1.4em 0;
+}
+.md-cyber .md-code-block > pre {
+  margin: 0;
+  padding-right: 3.4em;
+}
+.md-code-copy {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85em;
+  height: 1.85em;
+  padding: 0;
+  color: var(--color-faint);
+  background: var(--color-panel);
+  border: 1px solid var(--color-edge);
+  opacity: 0.6;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease;
+}
+.md-code-copy:hover,
+.md-code-copy:focus-visible {
+  color: var(--color-neon);
+  border-color: var(--color-neon);
+  opacity: 1;
+  outline: none;
+}
+.md-code-copy[data-state='ok'] {
+  color: var(--color-volt);
+  border-color: var(--color-volt);
+  opacity: 1;
+}
+.md-code-copy[data-state='fail'] {
+  color: var(--color-pulse);
+  border-color: var(--color-pulse);
+  opacity: 1;
+}
+.md-copy-icon {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.md-code-copy[data-state='idle'] .md-copy-icon--idle,
+.md-code-copy[data-state='ok'] .md-copy-icon--ok,
+.md-code-copy[data-state='fail'] .md-copy-icon--fail {
+  display: inline-flex;
+}
 .md-cyber ul,
 .md-cyber ol {
   margin: 1.1em 0;
