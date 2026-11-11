@@ -115,5 +115,7 @@ export function MarkdownEditor({
     })
   }, [value])
 
+  // host 是 section（flex column）里唯一的内容子元素：flex-1 + min-h-0 给出确定高度，
+  // .cm-editor 的 height:100% 才能解析，内部 .cm-scroller 才可独立滚动
   return <div ref={hostRef} className="min-h-0 flex-1 overflow-hidden" />
 }

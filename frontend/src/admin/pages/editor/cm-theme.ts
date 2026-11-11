@@ -39,6 +39,9 @@ export const cyberTheme = EditorView.theme(
       color: '#dbe6f5',
       backgroundColor: 'transparent',
       fontSize: '14px',
+      // 高度链：host（flex-1）→ .cm-editor(100%) → .cm-scroller(CM 内置 100% + overflow auto)。
+      // 少了这一行，编辑区的滚动高度由内容撑开，滚轮只会滚动页面而看不到长正文后半段
+      height: '100%',
     },
     '.cm-content': {
       fontFamily: "'JetBrains Mono Variable', ui-monospace, Menlo, Consolas, monospace",
