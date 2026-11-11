@@ -36,6 +36,28 @@ describe('代码块渲染', () => {
     expect(out).toContain('class="hljs"')
     expect(out).toContain('&lt;b&gt;')
   })
+
+  it('普通代码块包一层 .md-code-block，代码文本逐字符保留（供复制按钮取原文）', () => {
+    const source = 'fmt.Println("hi")\nif err != nil {\n\treturn err\n}'
+    const out = renderMarkdown('```go\n' + source + '\n```')
+    expect(out).toContain('class="md-code-block"')
+    // 按钮由页面在 HTML 注入后挂载，静态 HTML 里不该出现按钮
+    expect(out).not.toContain('md-code-copy')
+
+    const host = document.createElement('div')
+    host.innerHTML = out
+    const block = host.querySelector('.md-code-block')
+    expect(block).not.toBeNull()
+    // hljs 只包 span，textContent 即 fence 原文（不是从高亮 HTML 反解析）；末尾换行来自 token
+    expect(block?.querySelector('pre code')?.textContent).toBe(source + '\n')
+  })
+
+  it('Mermaid 不进普通代码块脚手架，也不产生复制按钮', () => {
+    const out = renderMarkdown('```mermaid\ngraph TD\nA-->B\n```')
+    expect(out).toContain('class="md-mermaid"')
+    expect(out).not.toContain('md-code-block')
+    expect(out).not.toContain('md-code-copy')
+  })
 })
 
 describe('extractToc 目录提取', () => {

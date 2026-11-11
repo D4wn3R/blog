@@ -8,6 +8,7 @@ import { renderMermaidIn } from '../../lib/mermaid'
 import { useArticle, useUnlockArticle } from '../../lib/queries'
 import type { TocItem } from '../../lib/markdown'
 import { CommentSection } from './CommentSection'
+import { CodeCopyButtons } from './CodeCopyButtons'
 import { UnlockPanel } from './UnlockPanel'
 import { useTocScroll } from './useTocScroll'
 
@@ -83,6 +84,9 @@ export function ArticleDetail() {
   const readable = !!article && (!article.has_password || article.unlocked)
   const content = readable && article ? article.content_md : ''
   const html = useMemo(() => renderMarkdown(content), [content])
+  // dangerouslySetInnerHTML 按对象引用比较：字面量每次渲染都是新对象，React 会重置 innerHTML，
+  // 抹掉运行时挂入的复制按钮并重跑 Mermaid。按 html 值 memo，只有正文真正变化时才重建 DOM
+  const innerHtml = useMemo(() => ({ __html: html }), [html])
   const toc = useMemo(() => extractToc(content), [content])
   const activeId = useTocScroll(toc)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -165,9 +169,10 @@ export function ArticleDetail() {
           <div
             ref={contentRef}
             className="md-content md-cyber mt-10"
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={innerHtml}
           />
         )}
+        <CodeCopyButtons contentRef={contentRef} html={html} />
       </article>
 
       <hr className="my-12 border-edge" />

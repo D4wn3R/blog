@@ -5,6 +5,7 @@ import { SectionHeading } from '../components/SectionHeading'
 import { UserAvatar } from '../components/UserAvatar'
 import { LoadingLine, ErrorLine, EmptyLine } from '../components/States'
 import { errMsg } from '../lib/api'
+import { copyText } from '../lib/clipboard'
 import { useAbout, useFriendLinks } from '../lib/queries'
 import type { AboutAggregate } from '../types/api'
 
@@ -25,25 +26,8 @@ function JsonRow({
   useEffect(() => () => window.clearTimeout(timerRef.current), [])
 
   const copy = async () => {
-    try {
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(value)
-      } else {
-        // 异步剪贴板 API 仅存在于安全上下文，HTTP 部署走 execCommand 兜底
-        const ta = document.createElement('textarea')
-        ta.value = value
-        ta.style.position = 'fixed'
-        ta.style.opacity = '0'
-        document.body.appendChild(ta)
-        ta.select()
-        const ok = document.execCommand('copy')
-        ta.remove()
-        if (!ok) throw new Error('execCommand copy failed')
-      }
-      setCopied('ok')
-    } catch {
-      setCopied('fail')
-    }
+    const ok = await copyText(value)
+    setCopied(ok ? 'ok' : 'fail')
     window.clearTimeout(timerRef.current)
     timerRef.current = window.setTimeout(() => setCopied(null), 1200)
   }
