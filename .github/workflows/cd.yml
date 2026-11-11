@@ -102,6 +102,9 @@ jobs:
     name: deploy redrock + txy
     runs-on: ubuntu-latest
     needs: build
+    # 显式条件：workflow_dispatch 传 image_tag 时 test 被跳过，缺这一行时
+    # GitHub 会把 deploy 直接判为 skipped（0 step），回滚通道失效
+    if: ${{ !cancelled() && !failure() }}
     env:
       TAG: ${{ needs.build.outputs.tag }}
       TXY_HOST: ${{ secrets.TXY_HOST }}
@@ -140,29 +143,50 @@ jobs:
           KEY_CONFIG: ${{ runner.temp }}/ssh_config
         run: |
           # 拉取放远端后台跑再轮询结果：大层下载期间 SSH 长时间无输出会被中间层掐断
-          # （Broken pipe），国内直连 ghcr.io 偶发 reset 也由脚本内重试兜住
+          # （Broken pipe），国内直连 ghcr.io 偶发 reset 也由脚本内重试兜住。
+          # 完成状态落 /tmp/blog-pull.status（ok/fail）：旧写法 pgrep -f "blog-pull.sh"
+          # 会匹配到轮询命令自身，导致每次部署空转满 15 分钟上限、慢拉取必然失败
           ssh -F "$KEY_CONFIG" redrock "TAG=$TAG IMAGE=$BACKEND_IMAGE bash -s" <<'EOF'
           set -euo pipefail
           cd ~/blog
           cat > /tmp/blog-pull.sh <<'SCRIPT'
           #!/usr/bin/env bash
           set -uo pipefail
+          status=/tmp/blog-pull.status
+          : > "$status"
+          # tag 是 commit 短 sha，不可变：本地已有就直接复用，省掉一次 ghcr manifest 往返
+          if docker image inspect "$1:$2" >/dev/null 2>&1; then
+            echo ok > "$status"
+            exit 0
+          fi
           for i in $(seq 1 5); do
-            docker pull "$1:$2" && exit 0
+            # 单次 10 分钟硬超时：挂死的拉取不再无限期占用部署窗口
+            if timeout 600 docker pull "$1:$2"; then
+              echo ok > "$status"
+              exit 0
+            fi
             echo "第 $i 次拉取失败，10s 后重试"
             sleep 10
           done
+          echo fail > "$status"
           exit 1
           SCRIPT
+          rm -f /tmp/blog-pull.status
           nohup bash /tmp/blog-pull.sh "$IMAGE" "$TAG" > /tmp/blog-pull.log 2>&1 &
           echo "拉取已后台启动"
           EOF
-          for _ in $(seq 1 60); do
-            out=$(ssh -F "$KEY_CONFIG" redrock \
-              'pgrep -f "blog-pull.sh" >/dev/null && echo RUNNING || echo DONE; tail -2 /tmp/blog-pull.log 2>/dev/null' || echo SSH_RETRY)
-            echo "$out" | grep -q "RUNNING" || break
-            sleep 15
+          # 轮询状态文件：ok 立即继续、fail 立即报错，最多等 40 分钟（240×10s）
+          for _ in $(seq 1 240); do
+            state=$(ssh -F "$KEY_CONFIG" redrock 'head -1 /tmp/blog-pull.status 2>/dev/null' 2>/dev/null || true)
+            [ "$state" = "ok" ] && break
+            if [ "$state" = "fail" ]; then
+              echo "镜像拉取失败，排障：ssh redrock 'tail -20 /tmp/blog-pull.log'" >&2
+              exit 1
+            fi
+            sleep 10
           done
+          state=$(ssh -F "$KEY_CONFIG" redrock 'head -1 /tmp/blog-pull.status 2>/dev/null' 2>/dev/null || true)
+          [ "$state" = "ok" ] || { echo "等待镜像拉取超时（40 分钟）" >&2; exit 1; }
           ssh -F "$KEY_CONFIG" redrock "TAG=$TAG IMAGE=$BACKEND_IMAGE bash -s" <<'EOF'
           set -euo pipefail
           cd ~/blog
@@ -190,29 +214,45 @@ jobs:
         env:
           KEY_CONFIG: ${{ runner.temp }}/ssh_config
         run: |
-          # 同 redrock：后台拉取 + 轮询，防 SSH 静默被掐
+          # 同 redrock：后台拉取 + 状态文件轮询，防 SSH 静默被掐
           ssh -F "$KEY_CONFIG" txy "TAG=$TAG IMAGE=$FRONTEND_IMAGE bash -s" <<'EOF'
           set -euo pipefail
           cd /root/blog
           cat > /tmp/blog-pull.sh <<'SCRIPT'
           #!/usr/bin/env bash
           set -uo pipefail
+          status=/tmp/blog-pull.status
+          : > "$status"
+          if docker image inspect "$1:$2" >/dev/null 2>&1; then
+            echo ok > "$status"
+            exit 0
+          fi
           for i in $(seq 1 5); do
-            docker pull "$1:$2" && exit 0
+            if timeout 600 docker pull "$1:$2"; then
+              echo ok > "$status"
+              exit 0
+            fi
             echo "第 $i 次拉取失败，10s 后重试"
             sleep 10
           done
+          echo fail > "$status"
           exit 1
           SCRIPT
+          rm -f /tmp/blog-pull.status
           nohup bash /tmp/blog-pull.sh "$IMAGE" "$TAG" > /tmp/blog-pull.log 2>&1 &
           echo "拉取已后台启动"
           EOF
-          for _ in $(seq 1 60); do
-            out=$(ssh -F "$KEY_CONFIG" txy \
-              'pgrep -f "blog-pull.sh" >/dev/null && echo RUNNING || echo DONE; tail -2 /tmp/blog-pull.log 2>/dev/null' || echo SSH_RETRY)
-            echo "$out" | grep -q "RUNNING" || break
-            sleep 15
+          for _ in $(seq 1 240); do
+            state=$(ssh -F "$KEY_CONFIG" txy 'head -1 /tmp/blog-pull.status 2>/dev/null' 2>/dev/null || true)
+            [ "$state" = "ok" ] && break
+            if [ "$state" = "fail" ]; then
+              echo "镜像拉取失败，排障：ssh txy 'tail -20 /tmp/blog-pull.log'" >&2
+              exit 1
+            fi
+            sleep 10
           done
+          state=$(ssh -F "$KEY_CONFIG" txy 'head -1 /tmp/blog-pull.status 2>/dev/null' 2>/dev/null || true)
+          [ "$state" = "ok" ] || { echo "等待镜像拉取超时（40 分钟）" >&2; exit 1; }
           ssh -F "$KEY_CONFIG" txy "TAG=$TAG IMAGE=$FRONTEND_IMAGE bash -s" <<'EOF'
           set -euo pipefail
           cd /root/blog
