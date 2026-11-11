@@ -89,7 +89,8 @@ func New(cfg *config.Config, h *handler.Handler, metricsReg *metrics.Registry) *
 			authed.POST("/oauth/:provider/bind-state", h.OAuthBindState)
 			authed.POST("/auth/logout", h.AuthLogout)
 			authed.GET("/user/me", h.UserMe)
-			authed.DELETE("/user/oauth/:provider", h.UserUnbindOAuth)
+			// 解绑固定 GitHub（站点唯一登录方式），不再按 :provider 参数路由
+			authed.DELETE("/user/oauth/github", h.UserUnbindOAuth)
 
 			// 评论发表/删除（#C2/#C3，归属校验在 service）
 			authed.POST("/articles/:slug/comments", h.CommentCreate)

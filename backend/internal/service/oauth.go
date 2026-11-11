@@ -21,6 +21,9 @@ import (
 // _tracerName 业务层手写 span 的 instrumentation scope 名：Jaeger 里按它筛业务 span
 const _tracerName = "github.com/D4wn3R/blog/backend/internal/service"
 
+// _githubProvider 站点唯一登录方式的平台名：数据库不存 provider，对外 DTO 与绑定回跳统一固定该值
+const _githubProvider = "github"
+
 // OAuthService OAuth 登录/绑定子服务（#1~#4）
 type OAuthService struct {
 	svc *Service
@@ -48,8 +51,8 @@ func (s *OAuthService) BindState(ctx context.Context, userID uint64, providerNam
 	if !ok {
 		return "", errNotFound("不支持的登录方式")
 	}
-	// 前置检查：已绑同平台 → 快速失败省一圈授权跳转（并发正确性由 uk_user_provider 兜底）
-	bound, err := s.svc.Repo.GetUserOAuthAccount(ctx, userID, providerName)
+	// 前置检查：已绑 GitHub → 快速失败省一圈授权跳转（并发正确性由 uk_oauth_accounts_user_id 兜底）
+	bound, err := s.svc.Repo.GetUserGitHubAccount(ctx, userID)
 	if err != nil {
 		return "", errServer(err)
 	}
@@ -147,16 +150,16 @@ func (s *OAuthService) Callback(ctx context.Context, pathProvider, cbError, code
 
 // loginBranch 登录分支（state.uid=0）：命中绑定则查用户，未命中事务建号，成功发 auth_code
 func (s *OAuthService) loginBranch(ctx context.Context, provider string, info *oauth.UserInfo) url.Values {
-	user, err := s.svc.Repo.GetUserByProvider(ctx, provider, info.ProviderID)
+	user, err := s.svc.Repo.GetUserByGitHubID(ctx, info.ProviderID)
 	if err != nil {
 		logCallbackErr(ctx, provider, "login_lookup", err)
 		return oauthFailedQuery()
 	}
 	if user == nil {
-		user, err = s.createLoginUser(ctx, provider, info)
-		if errors.Is(err, repository.ErrDupProviderBinding) || errors.Is(err, repository.ErrDupUserBinding) {
-			// 并发建号竞态：撞唯一索引说明另一请求已建号绑定，重查该 (provider, provider_id) 当"命中"处理
-			user, err = s.svc.Repo.GetUserByProvider(ctx, provider, info.ProviderID)
+		user, err = s.createLoginUser(ctx, info)
+		if errors.Is(err, repository.ErrDupGitHubBinding) || errors.Is(err, repository.ErrDupUserBinding) {
+			// 并发建号竞态：撞唯一索引说明另一请求已建号绑定，重查该 github_id 当"命中"处理
+			user, err = s.svc.Repo.GetUserByGitHubID(ctx, info.ProviderID)
 		}
 		if err != nil || user == nil {
 			logCallbackErr(ctx, provider, "login_create", err)
@@ -189,7 +192,7 @@ func (s *OAuthService) loginBranch(ctx context.Context, provider string, info *o
 // createLoginUser 事务建号（spec §2.3 建号规则）。
 // users.username 撞唯一索引（并发同名昵称竞态）→ 换随机后缀重试；
 // oauth_accounts 撞唯一索引 → 原样上抛，由调用方重查当"命中"处理
-func (s *OAuthService) createLoginUser(ctx context.Context, provider string, info *oauth.UserInfo) (*model.User, error) {
+func (s *OAuthService) createLoginUser(ctx context.Context, info *oauth.UserInfo) (*model.User, error) {
 	base, err := s.genUsername(ctx, info.Nickname)
 	if err != nil {
 		return nil, err
@@ -204,10 +207,9 @@ func (s *OAuthService) createLoginUser(ctx context.Context, provider string, inf
 			Status:   model.UserStatusNormal,
 		}
 		account := &model.OAuthAccount{
-			Provider:   provider,
-			ProviderID: info.ProviderID,
-			Nickname:   info.Nickname, // 第三方快照仅建绑定时写一次，平台改名不改库
-			Avatar:     info.Avatar,
+			GitHubID: info.ProviderID,
+			Nickname: info.Nickname, // GitHub 快照仅建绑定时写一次，平台改名不改库
+			Avatar:   info.Avatar,
 		}
 		err = s.svc.Repo.CreateUserWithAccount(ctx, user, account)
 		if err == nil {
@@ -243,8 +245,8 @@ func (s *OAuthService) genUsername(ctx context.Context, nickname string) (string
 
 // bindBranch 绑定分支（state.uid>0）：前置检查给友好文案，并发正确性由双唯一索引兜底
 func (s *OAuthService) bindBranch(ctx context.Context, userID uint64, provider string, info *oauth.UserInfo) url.Values {
-	// 前置检查一：(provider, provider_id) 已绑他人 → already_bound（绑给自己则落入下方 provider_exists）
-	acc, err := s.svc.Repo.GetOAuthAccountByProviderID(ctx, provider, info.ProviderID)
+	// 前置检查一：该 GitHub 账号已绑他人 → already_bound（绑给自己则落入下方 provider_exists）
+	acc, err := s.svc.Repo.GetOAuthAccountByGitHubID(ctx, info.ProviderID)
 	if err != nil {
 		logCallbackErr(ctx, provider, "bind_lookup_provider", err)
 		return oauthFailedQuery()
@@ -252,8 +254,8 @@ func (s *OAuthService) bindBranch(ctx context.Context, userID uint64, provider s
 	if acc != nil && acc.UserID != userID {
 		return url.Values{"error": {"already_bound"}}
 	}
-	// 前置检查二：本人已绑同平台 → provider_exists
-	own, err := s.svc.Repo.GetUserOAuthAccount(ctx, userID, provider)
+	// 前置检查二：本人已绑 GitHub → provider_exists
+	own, err := s.svc.Repo.GetUserGitHubAccount(ctx, userID)
 	if err != nil {
 		logCallbackErr(ctx, provider, "bind_lookup_user", err)
 		return oauthFailedQuery()
@@ -262,16 +264,15 @@ func (s *OAuthService) bindBranch(ctx context.Context, userID uint64, provider s
 		return url.Values{"error": {"provider_exists"}}
 	}
 	account := &model.OAuthAccount{
-		UserID:     userID,
-		Provider:   provider,
-		ProviderID: info.ProviderID,
-		Nickname:   info.Nickname,
-		Avatar:     info.Avatar,
+		UserID:   userID,
+		GitHubID: info.ProviderID,
+		Nickname: info.Nickname,
+		Avatar:   info.Avatar,
 	}
-	if err := s.svc.Repo.CreateOAuthAccount(ctx, account); err != nil {
+	if err := s.svc.Repo.CreateGitHubAccount(ctx, account); err != nil {
 		// 前置检查与插入之间的并发窗口由唯一索引兜底，按撞哪条唯一索引映射错误码
 		switch {
-		case errors.Is(err, repository.ErrDupProviderBinding):
+		case errors.Is(err, repository.ErrDupGitHubBinding):
 			return url.Values{"error": {"already_bound"}}
 		case errors.Is(err, repository.ErrDupUserBinding):
 			return url.Values{"error": {"provider_exists"}}

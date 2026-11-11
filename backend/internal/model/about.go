@@ -35,7 +35,7 @@ type AboutProject struct {
 func (AboutProject) TableName() string { return "about_projects" }
 
 // AboutJourney 足迹（#B11-#B13）；time 语义日期（YYYY-M-D），落库 DATE 列，列名 journey_time 避 MySQL 关键字（D8）；
-// 读侧固定时间降序，无 sort（#B14 手动排序已废，历史 sort 列残留在库中不再读写）
+// 读侧固定时间降序，无 sort（#B14 手动排序已废，历史 sort 列由 -migrate 的 schema 收敛删除）
 type AboutJourney struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"`
 	JourneyTime time.Time `gorm:"column:journey_time;type:date;not null"`
