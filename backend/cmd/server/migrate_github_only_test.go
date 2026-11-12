@@ -11,6 +11,7 @@ import (
 	gormmysql "gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
+	"github.com/D4wn3R/blog/backend/internal/model"
 	"github.com/D4wn3R/blog/backend/internal/pkg/randx"
 )
 
@@ -361,5 +362,44 @@ func TestMigrateGitHubOnlySchemaRejectsUnsafeData(t *testing.T) {
 				t.Errorf("迁移中止后仍创建了 github_id")
 			}
 		})
+	}
+}
+
+// TestMigrateGitHubOnlySchemaOnEmptyDatabase 全新部署回归：
+// 空库里没有任何表，迁移必须原样放行（所有步骤按"已完成"跳过），
+// 索引随之后的 AutoMigrate 建表时一并生成。曾经的实现会在空库上
+// 直接 ALTER 建索引，报 1146 Table doesn't exist 导致启动失败
+func TestMigrateGitHubOnlySchemaOnEmptyDatabase(t *testing.T) {
+	db, schema := newMigrateTestDB(t)
+
+	if err := migrateGitHubOnlySchema(db); err != nil {
+		t.Fatalf("空库迁移应放行，实际报错: %v", err)
+	}
+	// 不应凭空建出任何表
+	for _, table := range []string{_tableUsers, _tableOAuth, _tableJourneys} {
+		if db.Migrator().HasTable(table) {
+			t.Errorf("空库迁移不应创建表 %s", table)
+		}
+	}
+	// 再跑一次仍幂等
+	if err := migrateGitHubOnlySchema(db); err != nil {
+		t.Fatalf("空库二次迁移: %v", err)
+	}
+
+	// AutoMigrate 建表后，新索引必须存在（迁移阶段跳过，由模型定义生成）
+	if err := db.AutoMigrate(&model.User{}, &model.OAuthAccount{}, &model.AboutJourney{}); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	for _, idx := range []string{_idxOAuthGitHubID, _idxOAuthUserID} {
+		exists, err := hasIndex(db, schema, _tableOAuth, idx)
+		if err != nil {
+			t.Fatalf("检查索引 %s: %v", idx, err)
+		}
+		if !exists {
+			t.Errorf("AutoMigrate 后仍缺少唯一索引 %s", idx)
+		}
+	}
+	if err := verifyGitHubOnlySchema(db); err != nil {
+		t.Errorf("新库 schema 复核失败: %v", err)
 	}
 }
