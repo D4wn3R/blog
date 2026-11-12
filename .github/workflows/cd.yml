@@ -9,7 +9,8 @@
 # SSH 路径：runner → txy(公网) ；runner → txy 跳板 → redrock(10.8.0.2, WireGuard)
 # 凭证：TXY_SSH_KEY / REDROCK_SSH_KEY 专用部署密钥对；主机地址与站点域名走
 #       secrets（TXY_HOST / SITE_URL），避免公网资产信息进入仓库历史
-# 兜底：scripts/deploy.sh 手动通道保留，CI 挂了不影响手动发布
+# 兜底：无仓库内脚本通道。Actions 整体故障时按 AGENTS.md「应急手动发布」直接
+#       在两台机器上 docker pull 镜像 tag → retag → compose up（不依赖仓库与 Actions）
 name: CD
 
 on:
