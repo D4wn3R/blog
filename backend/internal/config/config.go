@@ -113,6 +113,23 @@ type Metrics struct {
 	Enabled bool
 }
 
+// envOnlyKeys 只能来自环境变量的配置键：敏感凭证 + 管理员账号标识。
+// 这些键在 configs/config.yaml 里一律不写，避免凭证与账号信息进公开仓库。
+//
+// viper 的 AutomaticEnv 只对"已知键"生效——yaml 里没有、也没 SetDefault 过的键，
+// env 注入会被静默忽略（已用 viper 1.21 实测确认）。所以这里显式注册键名，
+// 只注册不给值：env 有值就用 env，没有就是零值，由各自的使用方判断是否必需
+var envOnlyKeys = []string{
+	"mysql.dsn",
+	"redis.password",
+	"rustfs.access_key",
+	"rustfs.secret_key",
+	"jwt.secret",
+	"oauth.github.client_id",
+	"oauth.github.client_secret",
+	"admin.github_id",
+}
+
 // Load 读取配置文件，支持环境变量覆盖（前缀 BLOG，点转下划线，如 BLOG_JWT_SECRET）
 func Load(path string) (*Config, error) {
 	v := viper.New()
@@ -124,6 +141,10 @@ func Load(path string) (*Config, error) {
 	v.SetEnvPrefix("BLOG")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
+	// env-only 键注册（见 envOnlyKeys 注释）：不设值，仅为让 env 覆盖生效
+	for _, key := range envOnlyKeys {
+		v.SetDefault(key, "")
+	}
 
 	cfg := &Config{}
 	// mapstructure 默认匹配连不上下划线风格的键（如 access_expire → AccessExpire
