@@ -302,8 +302,13 @@ func dropIndexIfExists(db *gorm.DB, schema, table, index string) error {
 	return nil
 }
 
-// ensureUniqueIndex 唯一索引不存在才建（幂等）
+// ensureUniqueIndex 唯一索引不存在才建（幂等）。
+// 表不存在（全新部署）时直接跳过：索引随 AutoMigrate 建表时一并生成，
+// 这里硬 ALTER 会报 1146（Table doesn't exist）
 func ensureUniqueIndex(db *gorm.DB, schema, table, index, column string) error {
+	if !db.Migrator().HasTable(table) {
+		return nil
+	}
 	exists, err := hasIndex(db, schema, table, index)
 	if err != nil {
 		return err
