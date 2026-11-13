@@ -54,6 +54,9 @@ body {
     'Fira Code', 'LXGW WenKai Lite', -apple-system, BlinkMacSystemFont, 'PingFang SC',
     'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
   --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Tailwind preflight 给 code/kbd/samp/pre 的 font-family 走 --default-mono-font-family，
+     该链式变量在 :root 已把 var(--font-mono) 代换成旧栈再继承，须在此重新声明代换 */
+  --default-mono-font-family: var(--font-mono);
   font-family: var(--font-sans);
   /* 正文与界面英文关闭编程连字：->、>= 等序列逐字符显示 */
   font-variant-ligatures: none;
