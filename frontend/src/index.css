@@ -46,12 +46,15 @@ body {
    新字体栈挂在 SiteLayout 容器（.site-root）上，经 CSS 变量级联覆盖 @theme 的
    --font-sans / --font-mono：C 端全部 font-sans / font-mono 工具类与 var(--font-mono)
    引用随之生效，B 端（AdminLayout / CodeMirror）保持原字体栈不受影响。
-   拉丁优先 Fira Code，中文逐字符回退霞鹜文楷轻便版（Fira Code 无 CJK 字形）。 */
+   拉丁优先 Fira Code，中文逐字符回退霞鹜文楷轻便版（Fira Code 无 CJK 字形）。
+   font-family 必须在此显式声明：body 上 var(--font-sans) 已替换成旧栈的计算值再继承，
+   仅覆盖变量不会改变继承结果。 */
 .site-root {
   --font-sans:
     'Fira Code', 'LXGW WenKai Lite', -apple-system, BlinkMacSystemFont, 'PingFang SC',
     'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
   --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-sans);
   /* 正文与界面英文关闭编程连字：->、>= 等序列逐字符显示 */
   font-variant-ligatures: none;
 }
