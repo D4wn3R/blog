@@ -1,4 +1,5 @@
 import { ArrowUp, EnvelopeSimple, GithubLogo, Rss } from '@phosphor-icons/react'
+import { CONTACT_EMAIL, GITHUB_URL } from '../lib/site'
 
 export function Footer() {
   return (
@@ -13,14 +14,21 @@ export function Footer() {
 
         <div className="flex items-center gap-2">
           {[
-            { icon: GithubLogo, label: 'GitHub', href: '#' },
-            { icon: EnvelopeSimple, label: '邮件', href: '#' },
+            {
+              icon: GithubLogo,
+              label: 'GitHub',
+              href: GITHUB_URL,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            },
+            { icon: EnvelopeSimple, label: '邮件', href: `mailto:${CONTACT_EMAIL}` },
             { icon: Rss, label: 'RSS 订阅', href: '/feed.xml' },
-          ].map(({ icon: Icon, label, href }) => (
+          ].map(({ icon: Icon, label, href, ...rest }) => (
             <a
               key={label}
               href={href}
               aria-label={label}
+              {...rest}
               className="flex h-9 w-9 items-center justify-center border border-edge text-dim transition-colors hover:border-neon/60 hover:text-neon"
             >
               <Icon size={17} />
