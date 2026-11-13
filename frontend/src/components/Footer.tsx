@@ -19,7 +19,7 @@ export function Footer() {
               label: 'GitHub',
               href: GITHUB_URL,
               target: '_blank',
-              rel: 'noopener noreferrer',
+              rel: 'noreferrer',
             },
             { icon: EnvelopeSimple, label: '邮件', href: `mailto:${CONTACT_EMAIL}` },
             { icon: Rss, label: 'RSS 订阅', href: '/feed.xml' },

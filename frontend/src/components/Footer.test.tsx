@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { CONTACT_EMAIL } from '../lib/site'
 import { Footer } from './Footer'
 
 describe('Footer 页脚链接', () => {
@@ -9,14 +10,13 @@ describe('Footer 页脚链接', () => {
     const link = screen.getByRole('link', { name: 'GitHub' })
     expect(link).toHaveAttribute('href', 'https://github.com/D4wn3R')
     expect(link).toHaveAttribute('target', '_blank')
-    expect(link.getAttribute('rel')).toContain('noopener')
-    expect(link.getAttribute('rel')).toContain('noreferrer')
+    expect(link).toHaveAttribute('rel', 'noreferrer')
   })
 
   it('邮件入口为纯 mailto 链接，不带默认主题或正文参数', () => {
     render(<Footer />)
     const link = screen.getByRole('link', { name: '邮件' })
-    expect(link).toHaveAttribute('href', 'mailto:2023270753@qq.com')
+    expect(link).toHaveAttribute('href', `mailto:${CONTACT_EMAIL}`)
     expect(link.getAttribute('href')).not.toContain('?')
   })
 
@@ -29,7 +29,7 @@ describe('Footer 页脚链接', () => {
   })
 
   it('GitHub 与邮件入口键盘可聚焦且具有明确可访问名称', async () => {
-    const { container } = render(<Footer />)
+    render(<Footer />)
     const user = userEvent.setup()
     await user.tab()
     expect(screen.getByRole('link', { name: 'GitHub' })).toHaveFocus()
@@ -41,6 +41,5 @@ describe('Footer 页脚链接', () => {
     expect(screen.getByRole('link', { name: '邮件' })).toHaveAttribute(
       'aria-label',
     )
-    expect(container).toBeDefined()
   })
 })
