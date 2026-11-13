@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Outlet, Route, Routes, useLocation } from 'react-router'
-import { AdminLayout } from './admin/AdminLayout'
 import { RequireAdmin } from './admin/components/RequireAdmin'
 import { OAuthCallback } from './pages/OAuthCallback'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -9,8 +8,14 @@ import { Nav } from './components/Nav'
 import { guardStaleChunk } from './lib/chunk'
 
 // 重型路由懒加载：B 端全部页面 + 两端详情页 + C 端内容页；
-// 壳组件（Nav/Footer/SiteLayout/OAuthCallback/AdminLayout）保持静态。
+// 壳组件（Nav/Footer/SiteLayout/OAuthCallback）保持静态；AdminLayout 随 B 端懒加载，
+// 其引入的 JetBrains Mono 字体 CSS 才能跟着 admin chunk 走，C 端页面零该字体请求。
 // 具名导出经 then 映射成 default 供 lazy 使用
+const AdminLayout = lazy(
+  guardStaleChunk(() =>
+    import('./admin/AdminLayout').then((m) => ({ default: m.AdminLayout })),
+  ),
+)
 const AdminAbout = lazy(
   guardStaleChunk(() =>
     import('./admin/pages/AdminAbout').then((m) => ({ default: m.AdminAbout })),

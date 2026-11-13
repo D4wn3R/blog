@@ -1,3 +1,5 @@
+// B 端登录页独立于 AdminLayout 的懒加载 chunk，font-mono 需要 JetBrains Mono 随本 chunk 加载
+import '@fontsource-variable/jetbrains-mono'
 import { GithubLogo } from '@phosphor-icons/react'
 import { startOAuth } from '../../lib/auth'
 

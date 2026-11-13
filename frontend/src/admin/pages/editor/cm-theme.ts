@@ -1,3 +1,5 @@
+// CodeMirror 主题硬编码 'JetBrains Mono Variable'：字体 CSS 随编辑器 chunk 加载
+import '@fontsource-variable/jetbrains-mono'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { EditorView } from '@codemirror/view'
 import { tags as t } from '@lezer/highlight'

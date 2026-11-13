@@ -1,3 +1,5 @@
+// JetBrains Mono 仅 B 端在用：字体 CSS 随本 chunk 加载（AdminLayout 已懒加载），C 端零请求
+import '@fontsource-variable/jetbrains-mono'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { ArrowSquareOut, SignOut } from '@phosphor-icons/react'
 import { errMsg } from '../lib/api'

@@ -1,6 +1,6 @@
-@import '@fontsource-variable/jetbrains-mono';
 /* 拉丁：Fira Code（仅 latin 子集、站点实际用到的字重）；中文：霞鹜文楷轻便版（unicode-range 切片）。
-   JetBrains Mono 仅剩 B 端 CodeMirror 编辑器在用（cm-theme.ts），保留全局引入 */
+   JetBrains Mono 仅 B 端在用，字体 CSS 改随 admin 懒加载 chunk 引入（AdminLayout / AdminLogin / cm-theme.ts），
+   不在全局入口出现，C 端页面零该字体请求 */
 @import '@fontsource/fira-code/latin-400.css';
 @import '@fontsource/fira-code/latin-500.css';
 @import '@fontsource/fira-code/latin-600.css';
