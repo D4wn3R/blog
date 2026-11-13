@@ -1,4 +1,12 @@
 @import '@fontsource-variable/jetbrains-mono';
+/* 拉丁：Fira Code（仅 latin 子集、站点实际用到的字重）；中文：霞鹜文楷轻便版（unicode-range 切片）。
+   JetBrains Mono 仅剩 B 端 CodeMirror 编辑器在用（cm-theme.ts），保留全局引入 */
+@import '@fontsource/fira-code/latin-400.css';
+@import '@fontsource/fira-code/latin-500.css';
+@import '@fontsource/fira-code/latin-600.css';
+@import '@fontsource/fira-code/latin-700.css';
+@import 'lxgw-wenkai-lite-webfont/lxgwwenkailite-regular.css';
+@import 'lxgw-wenkai-lite-webfont/lxgwwenkailite-bold.css';
 @import 'tailwindcss';
 /* Animate.css：class 驱动的现成动效（路由过渡/菜单/状态提示），v4 自带 reduced-motion 降级 */
 @import 'animate.css';
@@ -32,6 +40,25 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* ---------- C 端站点字体（工单 #12） ----------
+   新字体栈挂在 SiteLayout 容器（.site-root）上，经 CSS 变量级联覆盖 @theme 的
+   --font-sans / --font-mono：C 端全部 font-sans / font-mono 工具类与 var(--font-mono)
+   引用随之生效，B 端（AdminLayout / CodeMirror）保持原字体栈不受影响。
+   拉丁优先 Fira Code，中文逐字符回退霞鹜文楷轻便版（Fira Code 无 CJK 字形）。 */
+.site-root {
+  --font-sans:
+    'Fira Code', 'LXGW WenKai Lite', -apple-system, BlinkMacSystemFont, 'PingFang SC',
+    'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* 正文与界面英文关闭编程连字：->、>= 等序列逐字符显示 */
+  font-variant-ligatures: none;
+}
+
+/* 代码块与等宽区域恢复 Fira Code 编程连字（calt，仅渲染效果，不改变源码字符与复制结果） */
+.site-root :is(pre, code, kbd, samp, .font-mono) {
+  font-variant-ligatures: contextual;
 }
 
 ::selection {

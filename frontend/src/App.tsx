@@ -120,11 +120,12 @@ function ScrollToTop() {
 
 // C 端站点外壳：导航 + 内容 + 页脚
 // 路由内容按 pathname keyed remount，借 Animate.css 每次切换重放一次快速淡入
-function SiteLayout() {
+// site-root：C 端字体栈作用域（index.css 覆盖 --font-sans / --font-mono），B 端不受影响
+export function SiteLayout() {
   const { pathname } = useLocation()
   const isArticle = /^\/posts\/[^/]+/.test(pathname)
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="site-root flex min-h-dvh flex-col">
       <BackgroundFX particles={!isArticle} />
       <Nav />
       <main className="flex grow flex-col">
