@@ -1,4 +1,9 @@
 /* ---------- Markdown 内容区：Cyber 主题（已定稿） ---------- */
+/* 长单词与 URL 折行（#12 验收：不得容器溢出；pre 保持 white-space: pre 不受影响） */
+.md-cyber {
+  overflow-wrap: break-word;
+}
+
 
 /* highlight.js 暗色配色（scoped 到 .md-cyber） */
 .md-cyber .hljs-keyword,
