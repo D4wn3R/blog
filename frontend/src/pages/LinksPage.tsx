@@ -144,47 +144,47 @@ export function LinksPage() {
         <ErrorLine message={error} />
       ) : (
         <>
-          <SectionHeading num="#01" zh="本节点" en="Local Node" />
-          {aboutData && <LocalNodeCard settings={aboutData.settings} />}
+          <SectionHeading zh="已连节点" en="Linked Nodes" />
+          {friendList.length === 0 ? (
+            <EmptyLine text="no links yet" />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {friendList.map((friend, i) => (
+                <a
+                  key={friend.id}
+                  href={friend.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group flex flex-col border border-edge bg-panel p-5 transition-colors duration-300 hover:border-neon/50"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <UserAvatar
+                      src={friend.image}
+                      alt={`${friend.name} 的头像`}
+                      className="img-cyber h-12 w-12 rounded-full border border-edge object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-2 font-medium">
+                        <span className="truncate">{friend.name}</span>
+                        <span className="flex shrink-0 items-center gap-1 border border-neon/40 px-2 py-0.5 font-mono text-[10px] text-neon">
+                          <span aria-hidden="true" className="h-1 w-1 rounded-full bg-neon" />
+                          LINK
+                        </span>
+                      </p>
+                      <p className="mt-1 font-mono text-[11px] text-faint">
+                        NODE · {String(i + 1).padStart(2, '0')}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm leading-relaxed text-dim">{friend.description}</p>
+                </a>
+              ))}
+            </div>
+          )}
 
           <div className="mt-16">
-            <SectionHeading num="#02" zh="已连节点" en="Linked Nodes" />
-            {friendList.length === 0 ? (
-              <EmptyLine text="no links yet" />
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {friendList.map((friend, i) => (
-                  <a
-                    key={friend.id}
-                    href={friend.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="group flex flex-col border border-edge bg-panel p-5 transition-colors duration-300 hover:border-neon/50"
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <UserAvatar
-                        src={friend.image}
-                        alt={`${friend.name} 的头像`}
-                        className="img-cyber h-12 w-12 rounded-full border border-edge object-cover"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-2 font-medium">
-                          <span className="truncate">{friend.name}</span>
-                          <span className="flex shrink-0 items-center gap-1 border border-neon/40 px-2 py-0.5 font-mono text-[10px] text-neon">
-                            <span aria-hidden="true" className="h-1 w-1 rounded-full bg-neon" />
-                            LINK
-                          </span>
-                        </p>
-                        <p className="mt-1 font-mono text-[11px] text-faint">
-                          NODE · {String(i + 1).padStart(2, '0')}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="mt-4 text-sm leading-relaxed text-dim">{friend.description}</p>
-                  </a>
-                ))}
-              </div>
-            )}
+            <SectionHeading zh="本节点" en="Local Node" />
+            {aboutData && <LocalNodeCard settings={aboutData.settings} />}
           </div>
         </>
       )}
