@@ -127,6 +127,53 @@ func (r *Repository) GetArticleByID(ctx context.Context, id uint64) (*model.Arti
 	return &a, nil
 }
 
+// ArticleNav 同分类相邻文章导航行（#13）：只暴露导航所需轻量列
+type ArticleNav struct {
+	ID          uint64
+	Slug        string
+	Title       string
+	PublishedAt *time.Time
+}
+
+// AdjacentArticles 同分类上一篇/下一篇（#13）：仅 status=1（隐藏文章排除，加密文章不排除）；
+// prev = published_at 严格早于本文的最新一条，next = 严格晚于本文的最早一条；
+// published_at 相同以 id 决胜（prev 取同刻 id 小于本文中最大的一条，next 取同刻
+// id 大于本文中最小的一条），次序确定且恒不返回本文自身；pinned 不参与排序；
+// 边界无相邻文章时对应返回 nil
+func (r *Repository) AdjacentArticles(ctx context.Context, categoryID, selfID uint64, selfPublishedAt time.Time) (prev, next *ArticleNav, err error) {
+	selectNav := "id, slug, title, published_at"
+	prevRow := ArticleNav{}
+	err = r.db.WithContext(ctx).Model(&model.Article{}).Select(selectNav).
+		Where("category_id = ? AND status = ?", categoryID, model.ArticleStatusPublished).
+		Where("published_at < ? OR (published_at = ? AND id < ?)", selfPublishedAt, selfPublishedAt, selfID).
+		Order("published_at DESC, id DESC").
+		First(&prevRow).Error
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		prev = nil
+	case err != nil:
+		return nil, nil, err
+	default:
+		prev = &prevRow
+	}
+
+	nextRow := ArticleNav{}
+	err = r.db.WithContext(ctx).Model(&model.Article{}).Select(selectNav).
+		Where("category_id = ? AND status = ?", categoryID, model.ArticleStatusPublished).
+		Where("published_at > ? OR (published_at = ? AND id > ?)", selfPublishedAt, selfPublishedAt, selfID).
+		Order("published_at ASC, id ASC").
+		First(&nextRow).Error
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		next = nil
+	case err != nil:
+		return nil, nil, err
+	default:
+		next = &nextRow
+	}
+	return prev, next, nil
+}
+
 // IncrArticleViews 浏览量原子自增（#A2，失败由 service 仅记日志）
 func (r *Repository) IncrArticleViews(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Model(&model.Article{}).Where("id = ?", id).
