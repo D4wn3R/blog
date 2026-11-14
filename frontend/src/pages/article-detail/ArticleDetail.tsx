@@ -96,7 +96,7 @@ export function ArticleDetail() {
 
   return (
     // 桌面端目录展开时在视口左侧预留固定侧栏空间，正文在剩余区域居中；收起后释放
-    <div className={cn('w-full', hasToc && !tocCollapsed && 'xl:pl-56')}>
+    <div className={cn('w-full', hasToc && !tocCollapsed && 'xl:pl-64')}>
       {hasToc && (
         <TocSidebar
           toc={toc}

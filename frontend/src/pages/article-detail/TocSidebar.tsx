@@ -61,8 +61,8 @@ export function TocSidebar({ toc, activeId, articleKey, collapsed, onCollapseCha
             onClick={onNavigate}
             data-active={activeId === item.id || undefined}
             className={cn(
-              'block break-words border-l-2 py-1 text-xs leading-relaxed transition-colors',
-              item.level === 3 ? 'pl-7' : item.level === 2 ? 'pl-5' : 'pl-3',
+              'block break-words border-l-2 py-1.5 text-sm leading-relaxed transition-colors',
+              item.level === 3 ? 'pl-8' : item.level === 2 ? 'pl-6' : 'pl-3',
               activeId === item.id
                 ? 'border-neon text-neon'
                 : 'border-edge text-faint hover:text-ink',
@@ -81,10 +81,10 @@ export function TocSidebar({ toc, activeId, articleKey, collapsed, onCollapseCha
       {!collapsed && (
         <nav
           aria-label="文章目录"
-          className="fixed bottom-0 left-0 top-16 z-30 hidden w-56 flex-col border-r border-edge bg-void/85 backdrop-blur-md xl:flex"
+          className="fixed bottom-0 left-0 top-16 z-30 hidden w-64 flex-col border-r border-edge bg-void/85 backdrop-blur-md xl:flex"
         >
           <div className="flex items-center justify-between border-b border-edge px-4 py-3">
-            <p className="font-mono text-[11px] tracking-widest text-faint">$ cat toc</p>
+            <p className="font-mono text-xs tracking-widest text-faint">$ cat toc</p>
             <button
               type="button"
               aria-label="收起目录"
@@ -97,7 +97,7 @@ export function TocSidebar({ toc, activeId, articleKey, collapsed, onCollapseCha
           <div
             ref={listRef}
             data-testid="toc-scroll"
-            className="relative flex-1 overflow-y-auto px-2 py-3"
+            className="relative flex-1 overflow-y-auto px-3 py-3"
           >
             {renderTocList()}
           </div>
@@ -133,7 +133,7 @@ export function TocSidebar({ toc, activeId, articleKey, collapsed, onCollapseCha
           <Dialog.Overlay className="animate__animated animate__fadeIn animate__faster fixed inset-0 z-50 bg-void/70 backdrop-blur-sm xl:hidden" />
           <Dialog.Content
             aria-describedby={undefined}
-            className="animate__animated animate__fadeInLeft animate__faster fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-edge bg-panel outline-none xl:hidden"
+            className="animate__animated animate__fadeInLeft animate__faster fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col border-r border-edge bg-panel outline-none xl:hidden"
           >
             <Dialog.Title className="sr-only">文章目录</Dialog.Title>
             <div className="flex items-center justify-between border-b border-edge px-4 py-3">
