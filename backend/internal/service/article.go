@@ -75,22 +75,31 @@ type AdminArticleListItem struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// ArticleNavDTO 相邻文章导航项（#13）：随详情一次返回，边界时对应字段为 null
+type ArticleNavDTO struct {
+	Slug        string     `json:"slug"`
+	Title       string     `json:"title"`
+	PublishedAt *time.Time `json:"published_at"`
+}
+
 // ArticleDetailDTO #A2 详情（三态共用同一 DTO；加密未解锁时 content_md 为空串）
 type ArticleDetailDTO struct {
-	ID          uint64      `json:"id"`
-	Title       string      `json:"title"`
-	Slug        string      `json:"slug"`
-	CoverURL    string      `json:"cover_url"`
-	HasPassword bool        `json:"has_password"`
-	Summary     string      `json:"summary"`
-	ContentMD   string      `json:"content_md"`
-	Unlocked    bool        `json:"unlocked"`
-	Pinned      bool        `json:"pinned"`
-	Minutes     int         `json:"minutes"`
-	PublishedAt *time.Time  `json:"published_at"`
-	Views       int64       `json:"views"`
-	Category    CategoryDTO `json:"category"`
-	Tags        []TagDTO    `json:"tags"`
+	ID          uint64         `json:"id"`
+	Title       string         `json:"title"`
+	Slug        string         `json:"slug"`
+	CoverURL    string         `json:"cover_url"`
+	HasPassword bool           `json:"has_password"`
+	Summary     string         `json:"summary"`
+	ContentMD   string         `json:"content_md"`
+	Unlocked    bool           `json:"unlocked"`
+	Pinned      bool           `json:"pinned"`
+	Minutes     int            `json:"minutes"`
+	PublishedAt *time.Time     `json:"published_at"`
+	Views       int64          `json:"views"`
+	Category    CategoryDTO    `json:"category"`
+	Tags        []TagDTO       `json:"tags"`
+	Prev        *ArticleNavDTO `json:"prev"`
+	Next        *ArticleNavDTO `json:"next"`
 }
 
 // UnlockDTO #A3 响应：独立 unlock token（claims 仅 aid，10 分钟）
@@ -314,6 +323,15 @@ func (s *ArticleService) GetBySlug(ctx context.Context, slug, unlockToken string
 	if a.Category != nil {
 		categoryName = a.Category.Name
 	}
+	// 相邻导航（#13）：published_at 为 NULL（防御）时不查，两侧边界
+	var prev, next *ArticleNavDTO
+	if a.PublishedAt != nil {
+		prevNav, nextNav, err := s.svc.Repo.AdjacentArticles(ctx, a.CategoryID, a.ID, *a.PublishedAt)
+		if err != nil {
+			return nil, errServer(err)
+		}
+		prev, next = toNavDTO(prevNav), toNavDTO(nextNav)
+	}
 	return &ArticleDetailDTO{
 		ID:          a.ID,
 		Title:       a.Title,
@@ -329,7 +347,17 @@ func (s *ArticleService) GetBySlug(ctx context.Context, slug, unlockToken string
 		Views:       int64(a.Views) + 1,
 		Category:    CategoryDTO{ID: a.CategoryID, Name: categoryName},
 		Tags:        toTagDTOs(a.Tags),
+		Prev:        prev,
+		Next:        next,
 	}, nil
+}
+
+// toNavDTO ArticleNav → 导航白名单 DTO（#13）；nil 透传表示边界
+func toNavDTO(n *repository.ArticleNav) *ArticleNavDTO {
+	if n == nil {
+		return nil
+	}
+	return &ArticleNavDTO{Slug: n.Slug, Title: n.Title, PublishedAt: n.PublishedAt}
 }
 
 // Unlock 访问密码换解锁 token（#A3）：非空判定用 TrimSpace 值，长度校验与 bcrypt 均用原始值；
