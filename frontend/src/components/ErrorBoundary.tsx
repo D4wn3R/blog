@@ -2,6 +2,31 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { ErrorBoundary as ReactErrorBoundary, type FallbackProps } from 'react-error-boundary'
 
+// 动态 import 失败（部署切换后旧入口引用的 chunk 404）的自愈：整页刷新拿新入口。
+// sessionStorage 守卫防循环：同一次会话只自动刷新一次，仍失败则正常展示错误。
+const CHUNK_RELOAD_KEY = 'blog-chunk-reloaded'
+
+function isStaleChunkError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error)
+  return (
+    /Failed to fetch dynamically imported module/.test(msg) ||
+    /Importing a module script failed/.test(msg) ||
+    /error loading dynamically imported module/i.test(msg)
+  )
+}
+
+function reloadOnceForStaleChunk(error: unknown): boolean {
+  if (!isStaleChunkError(error)) return false
+  try {
+    if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return false
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, '1')
+  } catch {
+    // sessionStorage 不可用（隐私模式等）时仍尝试刷新一次——极小概率循环由 onError 兜底
+  }
+  window.location.reload()
+  return true
+}
+
 // 渲染期异常兜底：react-error-boundary 实现（规范对照表：禁止手写 class 组件兜底）。
 // resetKeys 传路由 pathname：路由切换即重置错误态，避免单次渲染错误永久卡死 SPA
 function RenderErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
@@ -41,7 +66,10 @@ export function ErrorBoundary({
   return (
     <ReactErrorBoundary
       FallbackComponent={RenderErrorFallback}
-      onError={(error) => console.error(error)}
+      onError={(error) => {
+        console.error(error)
+        reloadOnceForStaleChunk(error)
+      }}
       resetKeys={resetKeys}
     >
       {children}
