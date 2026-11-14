@@ -40,6 +40,13 @@ export interface AdminArticleListItem extends ArticleListItem {
   created_at: string
 }
 
+// 相邻文章导航项（#13）：随详情一次返回，边界为 null
+export interface ArticleNav {
+  slug: string
+  title: string
+  published_at: string | null
+}
+
 export interface ArticleDetail {
   id: number
   slug: string
@@ -55,6 +62,8 @@ export interface ArticleDetail {
   views: number
   category: { id: number; name: string }
   tags: { id: number; name: string }[]
+  prev: ArticleNav | null
+  next: ArticleNav | null
 }
 
 // #A5 全字段回显：#A4 列表项 + 正文/表单编辑所需字段（tags 覆盖为 {id,name}，区别于列表项的名字数组）
