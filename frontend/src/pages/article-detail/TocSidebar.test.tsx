@@ -86,12 +86,16 @@ describe('TocSidebar 桌面侧栏', () => {
       <TocSidebar {...baseProps} collapsed onCollapseChange={onCollapseChange} />,
     )
 
-    rerender(<TocSidebar {...baseProps} articleKey="another-slug" onCollapseChange={onCollapseChange} />)
+    rerender(
+      <TocSidebar {...baseProps} articleKey="another-slug" onCollapseChange={onCollapseChange} />,
+    )
     expect(onCollapseChange).toHaveBeenLastCalledWith(false)
   })
 
   it('高亮项在目录可视区下方时，目录自身 scrollTop 滚动到可见，不触碰页面滚动', () => {
-    const { rerender } = render(<TocSidebar {...baseProps} activeId="intro" onCollapseChange={vi.fn()} />)
+    const { rerender } = render(
+      <TocSidebar {...baseProps} activeId="intro" onCollapseChange={vi.fn()} />,
+    )
 
     const list = screen.getByTestId('toc-scroll')
 
@@ -108,7 +112,9 @@ describe('TocSidebar 桌面侧栏', () => {
   })
 
   it('高亮项滚到目录可视区上方时向上回滚到条目顶部', () => {
-    const { rerender } = render(<TocSidebar {...baseProps} activeId="detail" onCollapseChange={vi.fn()} />)
+    const { rerender } = render(
+      <TocSidebar {...baseProps} activeId="detail" onCollapseChange={vi.fn()} />,
+    )
 
     const list = screen.getByTestId('toc-scroll')
     Object.defineProperty(list, 'clientHeight', { configurable: true, value: 300 })
@@ -130,11 +136,11 @@ describe('TocSidebar 窄屏抽屉', () => {
     render(<TocSidebar {...baseProps} collapsed onCollapseChange={onCollapseChange} />)
 
     const dialog = openDrawer()
-    expect(within(dialog).getAllByRole('link').map((a) => a.textContent)).toEqual([
-      'intro',
-      'usage',
-      'detail',
-    ])
+    expect(
+      within(dialog)
+        .getAllByRole('link')
+        .map((a) => a.textContent),
+    ).toEqual(['intro', 'usage', 'detail'])
     // 抽屉开关不改动桌面折叠态（挂载初始化上报的 false 除外）
     expect(onCollapseChange).not.toHaveBeenCalledWith(true)
   })
