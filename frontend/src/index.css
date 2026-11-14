@@ -47,12 +47,31 @@ body {
    --font-sans / --font-mono：C 端全部 font-sans / font-mono 工具类与 var(--font-mono)
    引用随之生效，B 端（AdminLayout / CodeMirror）保持原字体栈不受影响。
    拉丁优先 Fira Code，中文逐字符回退霞鹜文楷轻便版（Fira Code 无 CJK 字形）。
+   'LXGW WenKai Lite UI' 是静态 UI 子集（frontend/scripts/subset-lxgw-ui.py 生成），
+   插在分片族之前：UI 字符命中小体积子集，动态字符（文章正文等）自动落到分片，自愈不豆腐。
    font-family 必须在此显式声明：body 上 var(--font-sans) 已替换成旧栈的计算值再继承，
    仅覆盖变量不会改变继承结果。 */
+
+/* 静态 UI 子集：仅覆盖站点界面文案字符集，随 index.html preload 直出（weight 400/700） */
+@font-face {
+  font-family: 'LXGW WenKai Lite UI';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/lxgw-ui-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'LXGW WenKai Lite UI';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/lxgw-ui-bold.woff2') format('woff2');
+}
+
 .site-root {
   --font-sans:
-    'Fira Code', 'LXGW WenKai Lite', -apple-system, BlinkMacSystemFont, 'PingFang SC',
-    'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+    'Fira Code', 'LXGW WenKai Lite UI', 'LXGW WenKai Lite', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
   --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   /* Tailwind preflight 给 code/kbd/samp/pre 的 font-family 走 --default-mono-font-family，
      该链式变量在 :root 已把 var(--font-mono) 代换成旧栈再继承，须在此重新声明代换 */
