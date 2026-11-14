@@ -7,6 +7,7 @@ import { extractToc, renderMarkdown } from '../../lib/markdown'
 import { renderMermaidIn } from '../../lib/mermaid'
 import { useArticle, useUnlockArticle } from '../../lib/queries'
 import { CommentSection } from './CommentSection'
+import { PrevNextNav } from './PrevNextNav'
 import { CodeCopyButtons } from './CodeCopyButtons'
 import { UnlockPanel } from './UnlockPanel'
 import { useTocScroll } from './useTocScroll'
@@ -116,6 +117,11 @@ export function ArticleDetail() {
             <ArrowLeft size={13} />$ cd ~/posts
           </Link>
 
+          {/* 上一篇（#13）：水平居中，位于返回链接与标题之间；边界仍渲染但不可跳转 */}
+          <div className="mt-4 flex justify-center">
+            <PrevNextNav direction="prev" nav={article.prev} />
+          </div>
+
           <h1 className="mt-6 text-3xl font-bold leading-snug tracking-tight md:text-4xl">
             {article.has_password && (
               <LockSimple size={26} weight="fill" className="mr-3 inline-block text-pulse" />
@@ -160,6 +166,11 @@ export function ArticleDetail() {
           )}
           <CodeCopyButtons contentRef={contentRef} html={html} />
         </article>
+
+        {/* 下一篇（#13）：正文最下方、评论区上方居中；边界仍渲染但不可跳转 */}
+        <div className="flex justify-center">
+          <PrevNextNav direction="next" nav={article.next} />
+        </div>
 
         <hr className="my-12 border-edge" />
 
