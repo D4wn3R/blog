@@ -38,7 +38,8 @@ export function TocSidebar({ toc, activeId, articleKey, collapsed, onCollapseCha
     const top = active.offsetTop
     const bottom = top + active.offsetHeight
     if (top < list.scrollTop) list.scrollTop = top
-    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight
+    else if (bottom > list.scrollTop + list.clientHeight)
+      list.scrollTop = bottom - list.clientHeight
   }, [activeId, collapsed, toc])
 
   // 窗口跨过桌面断点（含浏览器缩放）时抽屉已被 CSS 隐藏，同步关闭并解除滚动锁定
@@ -93,7 +94,11 @@ export function TocSidebar({ toc, activeId, articleKey, collapsed, onCollapseCha
               <CaretDoubleLeft size={14} />
             </button>
           </div>
-          <div ref={listRef} data-testid="toc-scroll" className="relative flex-1 overflow-y-auto px-2 py-3">
+          <div
+            ref={listRef}
+            data-testid="toc-scroll"
+            className="relative flex-1 overflow-y-auto px-2 py-3"
+          >
             {renderTocList()}
           </div>
         </nav>
@@ -111,20 +116,19 @@ export function TocSidebar({ toc, activeId, articleKey, collapsed, onCollapseCha
         </button>
       )}
 
-
       {/* 窄屏抽屉：Radix Dialog（遮罩点击 / Esc / 焦点圈禁 / 滚动锁 / 焦点恢复内建），
           断点显隐与桌面端一致交给 CSS，故 Overlay/Content 补 xl:hidden */}
       <Dialog.Root open={drawerOpen} onOpenChange={setDrawerOpen}>
-      {/* 窄屏入口：左下角「目录」按钮；Dialog.Trigger 使 Radix 记录 opener，关闭后焦点自动恢复到它 */}
-      <Dialog.Trigger asChild>
-        <button
-          type="button"
-          className="fixed bottom-6 left-6 z-30 flex items-center gap-2 border border-edge bg-panel/90 px-3 py-2 font-mono text-xs text-dim transition-colors hover:text-neon xl:hidden"
-        >
-          <List size={14} />
-          目录
-        </button>
-      </Dialog.Trigger>
+        {/* 窄屏入口：左下角「目录」按钮；Dialog.Trigger 使 Radix 记录 opener，关闭后焦点自动恢复到它 */}
+        <Dialog.Trigger asChild>
+          <button
+            type="button"
+            className="fixed bottom-6 left-6 z-30 flex items-center gap-2 border border-edge bg-panel/90 px-3 py-2 font-mono text-xs text-dim transition-colors hover:text-neon xl:hidden"
+          >
+            <List size={14} />
+            目录
+          </button>
+        </Dialog.Trigger>
         <Dialog.Portal>
           <Dialog.Overlay className="animate__animated animate__fadeIn animate__faster fixed inset-0 z-50 bg-void/70 backdrop-blur-sm xl:hidden" />
           <Dialog.Content
@@ -144,7 +148,9 @@ export function TocSidebar({ toc, activeId, articleKey, collapsed, onCollapseCha
                 </button>
               </Dialog.Close>
             </div>
-            <div className="flex-1 overflow-y-auto px-2 py-3">{renderTocList(() => setDrawerOpen(false))}</div>
+            <div className="flex-1 overflow-y-auto px-2 py-3">
+              {renderTocList(() => setDrawerOpen(false))}
+            </div>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
