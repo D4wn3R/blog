@@ -33,7 +33,7 @@ export function PrevNextNav({ direction, nav }: PrevNextNavProps) {
       <span
         id={tipId}
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 whitespace-nowrap border border-edge bg-panel px-3 py-1.5 text-dim shadow-[0_0_12px_rgba(46,230,255,0.15)] group-hover:block group-focus-within:block"
+        className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden max-w-[90vw] -translate-x-1/2 truncate border border-edge bg-panel px-3 py-1.5 text-dim shadow-[0_0_12px_rgba(46,230,255,0.15)] group-hover:block group-focus-within:block"
       >
         {tip}
       </span>
