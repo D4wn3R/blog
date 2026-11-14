@@ -111,21 +111,20 @@ export function TocSidebar({ toc, activeId, articleKey, collapsed, onCollapseCha
         </button>
       )}
 
-      {/* 窄屏入口：左下角「目录」按钮 */}
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        aria-expanded={drawerOpen}
-        onClick={() => setDrawerOpen(true)}
-        className="fixed bottom-6 left-6 z-30 flex items-center gap-2 border border-edge bg-panel/90 px-3 py-2 font-mono text-xs text-dim transition-colors hover:text-neon xl:hidden"
-      >
-        <List size={14} />
-        目录
-      </button>
 
       {/* 窄屏抽屉：Radix Dialog（遮罩点击 / Esc / 焦点圈禁 / 滚动锁 / 焦点恢复内建），
           断点显隐与桌面端一致交给 CSS，故 Overlay/Content 补 xl:hidden */}
       <Dialog.Root open={drawerOpen} onOpenChange={setDrawerOpen}>
+      {/* 窄屏入口：左下角「目录」按钮；Dialog.Trigger 使 Radix 记录 opener，关闭后焦点自动恢复到它 */}
+      <Dialog.Trigger asChild>
+        <button
+          type="button"
+          className="fixed bottom-6 left-6 z-30 flex items-center gap-2 border border-edge bg-panel/90 px-3 py-2 font-mono text-xs text-dim transition-colors hover:text-neon xl:hidden"
+        >
+          <List size={14} />
+          目录
+        </button>
+      </Dialog.Trigger>
         <Dialog.Portal>
           <Dialog.Overlay className="animate__animated animate__fadeIn animate__faster fixed inset-0 z-50 bg-void/70 backdrop-blur-sm xl:hidden" />
           <Dialog.Content
