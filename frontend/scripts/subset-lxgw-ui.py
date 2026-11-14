@@ -48,7 +48,7 @@ UI_CHARSET = (
     "除随页首，"
 )
 
-VERSION = "v1.250"
+VERSION = "v1.250"  # 与 npm 包 lxgw-wenkai-lite-webfont 内嵌版本一致；package.json 里两个字体包钉精确版本同理——子集字形必须与分片字形完全同源
 TTF_URLS = {
     "regular": f"https://github.com/lxgw/LxgwWenKai-Lite/releases/download/{VERSION}/LXGWWenKaiLite-Regular.ttf",
     "bold": f"https://github.com/lxgw/LxgwWenKai-Lite/releases/download/{VERSION}/LXGWWenKaiLite-Bold.ttf",
