@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TocSidebar } from './TocSidebar'
 import type { TocItem } from '../../lib/markdown'
 
@@ -27,6 +27,31 @@ function stubRect(el: HTMLElement, props: { offsetTop?: number; offsetHeight?: n
     Object.defineProperty(el, 'offsetHeight', { configurable: true, value: props.offsetHeight })
   }
 }
+
+// matchMedia 替身：记录 change 监听，测试里手动触发断点穿越
+type MediaListener = (e: { matches: boolean }) => void
+let mediaListeners: MediaListener[] = []
+function stubMatchMedia(matches: boolean) {
+  mediaListeners = []
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches,
+      media: query,
+      addEventListener: (_: string, l: MediaListener) => mediaListeners.push(l),
+      removeEventListener: (_: string, l: MediaListener) => {
+        mediaListeners = mediaListeners.filter((x) => x !== l)
+      },
+    })),
+  )
+}
+beforeEach(() => {
+  // 组件挂载即订阅桌面断点；默认窄屏（matches=false）
+  stubMatchMedia(false)
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('TocSidebar 桌面侧栏', () => {
   it('渲染目录导航、全部条目与收起按钮', () => {
@@ -154,6 +179,20 @@ describe('TocSidebar 窄屏抽屉', () => {
 
     fireEvent.click(within(dialog).getByRole('link', { name: 'usage' }))
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('窗口跨过桌面断点（如缩放）时抽屉自动关闭并解锁滚动', () => {
+    stubMatchMedia(false)
+    render(<TocSidebar {...baseProps} onCollapseChange={vi.fn()} />)
+
+    openDrawer()
+    expect(document.body.style.overflow).toBe('hidden')
+
+    act(() => {
+      mediaListeners.forEach((l) => l({ matches: true }))
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.body.style.overflow).toBe('')
   })
 })
 
