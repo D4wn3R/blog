@@ -6,40 +6,12 @@ import { useAuthStore } from '../../lib/authStore'
 import { extractToc, renderMarkdown } from '../../lib/markdown'
 import { renderMermaidIn } from '../../lib/mermaid'
 import { useArticle, useUnlockArticle } from '../../lib/queries'
-import type { TocItem } from '../../lib/markdown'
 import { CommentSection } from './CommentSection'
 import { CodeCopyButtons } from './CodeCopyButtons'
 import { UnlockPanel } from './UnlockPanel'
 import { useTocScroll } from './useTocScroll'
-
-// 左侧目录（宽屏专属）：粘性跟随，锚点跳转 + 滚动高亮当前章节
-function TocNav({ toc, activeId }: { toc: TocItem[]; activeId: string }) {
-  return (
-    <nav aria-label="文章目录" className="absolute inset-y-0 right-full mr-8 hidden w-52 xl:block">
-      <div className="sticky top-24">
-        <p className="mb-3 font-mono text-[11px] tracking-widest text-faint">$ cat toc</p>
-        <ul>
-          {toc.map((item) => (
-            <li key={item.id}>
-              <a
-                href={`#${item.id}`}
-                className={`block border-l-2 py-1 text-xs leading-relaxed transition-colors ${
-                  item.level === 3 ? 'pl-7' : item.level === 2 ? 'pl-5' : 'pl-3'
-                } ${
-                  activeId === item.id
-                    ? 'border-neon text-neon'
-                    : 'border-edge text-faint hover:text-ink'
-                }`}
-              >
-                {item.text}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </nav>
-  )
-}
+import { TocSidebar } from './TocSidebar'
+import { cn } from '../../lib/cn'
 
 // 文章详情页：GET /api/articles/:slug（加密三态）+ 评论楼中楼（#C1-#C3）
 export function ArticleDetail() {
@@ -90,6 +62,8 @@ export function ArticleDetail() {
   const toc = useMemo(() => extractToc(content), [content])
   const activeId = useTocScroll(toc)
   const contentRef = useRef<HTMLDivElement>(null)
+  // 桌面端目录折叠态：仅内存，不持久化；切换文章时由 TocSidebar 上报重置为展开
+  const [tocCollapsed, setTocCollapsed] = useState(false)
 
   useEffect(() => {
     if (contentRef.current) {
@@ -118,66 +92,79 @@ export function ArticleDetail() {
     )
   }
 
+  const hasToc = toc.length > 0 && readable
+
   return (
-    <div className="relative mx-auto w-full max-w-3xl px-6 py-14">
-      {toc.length > 0 && readable && <TocNav toc={toc} activeId={activeId} />}
+    // 桌面端目录展开时在视口左侧预留固定侧栏空间，正文在剩余区域居中；收起后释放
+    <div className={cn('w-full', hasToc && !tocCollapsed && 'xl:pl-56')}>
+      {hasToc && (
+        <TocSidebar
+          toc={toc}
+          activeId={activeId}
+          articleKey={slugKey}
+          collapsed={tocCollapsed}
+          onCollapseChange={setTocCollapsed}
+        />
+      )}
 
-      <article>
-        <Link
-          to="/posts"
-          className="inline-flex items-center gap-2 font-mono text-xs text-faint transition-colors hover:text-neon"
-        >
-          <ArrowLeft size={13} />$ cd ~/posts
-        </Link>
+      <div className="mx-auto w-full max-w-3xl px-6 py-14">
+        <article>
+          <Link
+            to="/posts"
+            className="inline-flex items-center gap-2 font-mono text-xs text-faint transition-colors hover:text-neon"
+          >
+            <ArrowLeft size={13} />$ cd ~/posts
+          </Link>
 
-        <h1 className="mt-6 text-3xl font-bold leading-snug tracking-tight md:text-4xl">
-          {article.has_password && (
-            <LockSimple size={26} weight="fill" className="mr-3 inline-block text-pulse" />
+          <h1 className="mt-6 text-3xl font-bold leading-snug tracking-tight md:text-4xl">
+            {article.has_password && (
+              <LockSimple size={26} weight="fill" className="mr-3 inline-block text-pulse" />
+            )}
+            {article.title}
+          </h1>
+
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-xs text-faint">
+            <span className="flex items-center gap-1.5">
+              <CalendarBlank size={13} />
+              {fmtDate(article.published_at).replaceAll('-', '.')}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock size={13} />
+              {article.minutes} min
+            </span>
+            <span className="border border-edge px-2 py-0.5 text-dim">{article.category.name}</span>
+            <span className="flex items-center gap-1.5">
+              <Tag size={13} />
+              {article.tags.map((t) => `#${t.name}`).join(' ')}
+            </span>
+          </div>
+
+          {article.cover_url && (
+            <img src={article.cover_url} alt={article.title} className="mt-8 w-full" />
           )}
-          {article.title}
-        </h1>
 
-        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-xs text-faint">
-          <span className="flex items-center gap-1.5">
-            <CalendarBlank size={13} />
-            {fmtDate(article.published_at).replaceAll('-', '.')}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Clock size={13} />
-            {article.minutes} min
-          </span>
-          <span className="border border-edge px-2 py-0.5 text-dim">{article.category.name}</span>
-          <span className="flex items-center gap-1.5">
-            <Tag size={13} />
-            {article.tags.map((t) => `#${t.name}`).join(' ')}
-          </span>
-        </div>
+          {article.has_password && !article.unlocked ? (
+            /* 加密未解锁：解锁面板（密码 → POST unlock → 带 token 重拉详情） */
+            <UnlockPanel
+              busy={unlockMutation.isPending}
+              error={unlockError}
+              resetKey={unlockToken}
+              onSubmit={submitUnlock}
+            />
+          ) : (
+            <div
+              ref={contentRef}
+              className="md-content md-cyber mt-10"
+              dangerouslySetInnerHTML={innerHtml}
+            />
+          )}
+          <CodeCopyButtons contentRef={contentRef} html={html} />
+        </article>
 
-        {article.cover_url && (
-          <img src={article.cover_url} alt={article.title} className="mt-8 w-full" />
-        )}
+        <hr className="my-12 border-edge" />
 
-        {article.has_password && !article.unlocked ? (
-          /* 加密未解锁：解锁面板（密码 → POST unlock → 带 token 重拉详情） */
-          <UnlockPanel
-            busy={unlockMutation.isPending}
-            error={unlockError}
-            resetKey={unlockToken}
-            onSubmit={submitUnlock}
-          />
-        ) : (
-          <div
-            ref={contentRef}
-            className="md-content md-cyber mt-10"
-            dangerouslySetInnerHTML={innerHtml}
-          />
-        )}
-        <CodeCopyButtons contentRef={contentRef} html={html} />
-      </article>
-
-      <hr className="my-12 border-edge" />
-
-      <CommentSection slug={slugKey} user={user} />
+        <CommentSection slug={slugKey} user={user} />
+      </div>
     </div>
   )
 }

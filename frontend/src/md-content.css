@@ -77,6 +77,7 @@
   font-family: var(--font-mono);
 }
 /* TOC 锚点定位偏移：跳转时避开 sticky 导航 */
+.md-cyber h1[id],
 .md-cyber h2[id],
 .md-cyber h3[id] {
   scroll-margin-top: 5.5rem;
