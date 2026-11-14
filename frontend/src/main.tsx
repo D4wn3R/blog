@@ -2,11 +2,17 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { reloadOnceForStaleChunk } from './lib/chunkReload'
+
 import { Toaster } from 'sonner'
 import './index.css'
 import './md-content.css'
 import App from './App.tsx'
 import { ApiError } from './lib/api'
+
+interface PreloadErrorEvent extends Event {
+  payload?: unknown
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,6 +26,12 @@ const queryClient = new QueryClient({
       },
     },
   },
+})
+
+// Vite 预载失败（路由懒加载 chunk 404 等，不经过 ErrorBoundary 渲染期路径）：
+// 复用同一守卫自愈刷新。Vite 事件的 payload 字段为原始 Error。
+document.addEventListener('vite:preloadError', (event) => {
+  if (reloadOnceForStaleChunk((event as PreloadErrorEvent).payload)) event.preventDefault()
 })
 
 createRoot(document.getElementById('root')!).render(
