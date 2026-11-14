@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TocSidebar } from './TocSidebar'
 import type { TocItem } from '../../lib/markdown'
 
-// 目录侧栏：桌面端常驻左栏（折叠/展开 + 高亮滚入可视区）+ 窄屏抽屉（焦点/滚动锁定/Esc）。
+// 目录侧栏：桌面端常驻左栏（折叠/展开 + 高亮滚入可视区）+ 窄屏抽屉（Radix Dialog）。
 // 桌面/窄屏的显隐由 CSS 断点驱动，jsdom 里两种 DOM 同时存在，用可访问名称区分。
 
 const toc: TocItem[] = [
@@ -123,7 +123,9 @@ describe('TocSidebar 桌面侧栏', () => {
 })
 
 describe('TocSidebar 窄屏抽屉', () => {
-  it('「目录」入口打开抽屉，锁定背景滚动；入口与收起入口互相独立', () => {
+  // Radix Dialog 内建行为（Esc / 遮罩 / 焦点圈禁 / 滚动锁 / 焦点恢复）不重复测，
+  // 这里只验证组件自身逻辑：入口开关、上报独立、章节跳转关闭、断点穿越关闭。
+  it('「目录」入口打开抽屉；入口与桌面收起入口互相独立', () => {
     const onCollapseChange = vi.fn()
     render(<TocSidebar {...baseProps} collapsed onCollapseChange={onCollapseChange} />)
 
@@ -133,44 +135,8 @@ describe('TocSidebar 窄屏抽屉', () => {
       'usage',
       'detail',
     ])
-    expect(document.body.style.overflow).toBe('hidden')
     // 抽屉开关不改动桌面折叠态（挂载初始化上报的 false 除外）
     expect(onCollapseChange).not.toHaveBeenCalledWith(true)
-  })
-
-  it('打开时焦点移入抽屉，Esc 关闭后焦点恢复、滚动锁定解除', () => {
-    render(
-      <>
-        <button type="button">外部按钮</button>
-        <TocSidebar {...baseProps} onCollapseChange={vi.fn()} />
-      </>,
-    )
-    const outside = screen.getByRole('button', { name: '外部按钮' })
-    outside.focus()
-
-    openDrawer()
-    expect(document.activeElement).toBe(screen.getByRole('dialog', { name: '文章目录' }))
-
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(document.activeElement).toBe(outside)
-    expect(document.body.style.overflow).toBe('')
-  })
-
-  it('点击遮罩关闭抽屉', () => {
-    render(<TocSidebar {...baseProps} onCollapseChange={vi.fn()} />)
-    openDrawer()
-
-    fireEvent.click(screen.getByTestId('toc-overlay'))
-    expect(screen.queryByRole('dialog')).toBeNull()
-  })
-
-  it('点击关闭按钮关闭抽屉', () => {
-    render(<TocSidebar {...baseProps} onCollapseChange={vi.fn()} />)
-    openDrawer()
-
-    fireEvent.click(screen.getByRole('button', { name: '关闭目录' }))
-    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('点击章节跳转后自动关闭抽屉', () => {
@@ -181,18 +147,15 @@ describe('TocSidebar 窄屏抽屉', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('窗口跨过桌面断点（如缩放）时抽屉自动关闭并解锁滚动', () => {
+  it('窗口跨过桌面断点（如缩放）时抽屉自动关闭', () => {
     stubMatchMedia(false)
     render(<TocSidebar {...baseProps} onCollapseChange={vi.fn()} />)
 
     openDrawer()
-    expect(document.body.style.overflow).toBe('hidden')
-
     act(() => {
       mediaListeners.forEach((l) => l({ matches: true }))
     })
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(document.body.style.overflow).toBe('')
   })
 })
 
@@ -206,8 +169,8 @@ describe('TocSidebar 持久化红线', () => {
     fireEvent.click(screen.getByRole('button', { name: '收起目录' }))
     rerender(<TocSidebar {...baseProps} collapsed onCollapseChange={onCollapseChange} />)
     fireEvent.click(screen.getByRole('button', { name: '展开目录' }))
-    openDrawer()
-    fireEvent.keyDown(document, { key: 'Escape' })
+    const dialog = openDrawer()
+    fireEvent.click(within(dialog).getByRole('link', { name: 'intro' }))
 
     expect(setItem).not.toHaveBeenCalled()
     expect(getItem).not.toHaveBeenCalled()
