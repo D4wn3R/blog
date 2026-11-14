@@ -65,6 +65,16 @@ export function TocSidebar({ toc, activeId, articleKey, collapsed, onCollapseCha
     return () => document.removeEventListener('keydown', onKey)
   }, [drawerOpen])
 
+  // 窗口跨过桌面断点（含浏览器缩放）时抽屉已被 CSS 隐藏，同步关闭并解除滚动锁定
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1280px)')
+    const onChange = (e: MediaQueryListEvent) => {
+      if (e.matches) setDrawerOpen(false)
+    }
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
   const renderTocList = (onNavigate?: () => void) => (
     <ul>
       {toc.map((item) => (
@@ -94,7 +104,7 @@ export function TocSidebar({ toc, activeId, articleKey, collapsed, onCollapseCha
       {!collapsed && (
         <nav
           aria-label="文章目录"
-          className="fixed inset-y-0 left-0 top-16 z-30 hidden w-56 flex-col border-r border-edge bg-void/85 backdrop-blur-md xl:flex"
+          className="fixed bottom-0 left-0 top-16 z-30 hidden w-56 flex-col border-r border-edge bg-void/85 backdrop-blur-md xl:flex"
         >
           <div className="flex items-center justify-between border-b border-edge px-4 py-3">
             <p className="font-mono text-[11px] tracking-widest text-faint">$ cat toc</p>
