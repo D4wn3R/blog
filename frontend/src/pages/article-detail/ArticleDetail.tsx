@@ -108,7 +108,7 @@ export function ArticleDetail() {
         />
       )}
 
-      <div className="mx-auto w-full max-w-3xl px-6 py-14">
+      <div className="mx-auto w-full max-w-[75rem] px-6 py-14">
         <article>
           <Link
             to="/posts"
