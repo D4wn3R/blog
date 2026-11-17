@@ -144,7 +144,7 @@ jobs:
           KEY_CONFIG: ${{ runner.temp }}/ssh_config
         run: |
           # 拉取放远端后台跑再轮询结果：大层下载期间 SSH 长时间无输出会被中间层掐断
-          # （Broken pipe），国内直连 ghcr.io 偶发 reset 也由脚本内重试兜住。
+          # （Broken pipe），镜像统一走国内镜像源链（ghcr.io 直连在国内不可用）。
           # 完成状态落 /tmp/blog-pull.status（ok/fail）：旧写法 pgrep -f "blog-pull.sh"
           # 会匹配到轮询命令自身，导致每次部署空转满 15 分钟上限、慢拉取必然失败
           ssh -F "$KEY_CONFIG" redrock "TAG=$TAG IMAGE=$BACKEND_IMAGE bash -s" <<'EOF'
@@ -155,18 +155,29 @@ jobs:
           set -uo pipefail
           status=/tmp/blog-pull.status
           : > "$status"
-          # tag 是 commit 短 sha，不可变：本地已有就直接复用，省掉一次 ghcr manifest 往返
-          if docker image inspect "$1:$2" >/dev/null 2>&1; then
+          image="$1"
+          tag="$2"
+          # tag 是 commit 短 sha，不可变：本地已有就直接复用
+          if docker image inspect "$image:$tag" >/dev/null 2>&1; then
             echo ok > "$status"
             exit 0
           fi
-          for i in $(seq 1 5); do
-            # 单次 10 分钟硬超时：挂死的拉取不再无限期占用部署窗口
-            if timeout 600 docker pull "$1:$2"; then
-              echo ok > "$status"
-              exit 0
-            fi
-            echo "第 $i 次拉取失败，10s 后重试"
+          # ghcr.io 直连在国内不可用（IPv6 被 reset、IPv4 超时）：统一走镜像源，
+          # 按实测速度排序逐级回退；拉完 retag 回原名，下游逻辑无感。
+          # 四个源均实测 digest 与 ghcr.io 官方一致（ce716a8 双镜像逐位相同）。
+          path="${image#ghcr.io/}"
+          mirrors="ghcr.nju.edu.cn ghcr.1ms.run ghcr.chenby.cn ghcr.dockerproxy.net"
+          for round in 1 2; do
+            for m in $mirrors; do
+              echo "第 $round 轮：尝试 $m/$path:$tag"
+              # 单次 4 分钟硬超时：两轮全灭最多 32 分钟，仍在 40 分钟轮询窗口内
+              if timeout 240 docker pull "$m/$path:$tag"; then
+                docker tag "$m/$path:$tag" "$image:$tag"
+                echo ok > "$status"
+                exit 0
+              fi
+              echo "  $m 失败，换下一个镜像源"
+            done
             sleep 10
           done
           echo fail > "$status"
@@ -224,16 +235,29 @@ jobs:
           set -uo pipefail
           status=/tmp/blog-pull.status
           : > "$status"
-          if docker image inspect "$1:$2" >/dev/null 2>&1; then
+          image="$1"
+          tag="$2"
+          # tag 是 commit 短 sha，不可变：本地已有就直接复用
+          if docker image inspect "$image:$tag" >/dev/null 2>&1; then
             echo ok > "$status"
             exit 0
           fi
-          for i in $(seq 1 5); do
-            if timeout 600 docker pull "$1:$2"; then
-              echo ok > "$status"
-              exit 0
-            fi
-            echo "第 $i 次拉取失败，10s 后重试"
+          # ghcr.io 直连在国内不可用（IPv6 被 reset、IPv4 超时）：统一走镜像源，
+          # 按实测速度排序逐级回退；拉完 retag 回原名，下游逻辑无感。
+          # 四个源均实测 digest 与 ghcr.io 官方一致（ce716a8 双镜像逐位相同）。
+          path="${image#ghcr.io/}"
+          mirrors="ghcr.nju.edu.cn ghcr.1ms.run ghcr.chenby.cn ghcr.dockerproxy.net"
+          for round in 1 2; do
+            for m in $mirrors; do
+              echo "第 $round 轮：尝试 $m/$path:$tag"
+              # 单次 4 分钟硬超时：两轮全灭最多 32 分钟，仍在 40 分钟轮询窗口内
+              if timeout 240 docker pull "$m/$path:$tag"; then
+                docker tag "$m/$path:$tag" "$image:$tag"
+                echo ok > "$status"
+                exit 0
+              fi
+              echo "  $m 失败，换下一个镜像源"
+            done
             sleep 10
           done
           echo fail > "$status"
