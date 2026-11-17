@@ -304,3 +304,30 @@ jobs:
           curl -fsS "$SITE_URL/api/health" | grep -q '"status"'
           curl -fsS -o /dev/null "$SITE_URL/"
           echo "线上冒烟通过：$TAG 已上线"
+
+      - name: 清理旧镜像（只保留当前版本）
+        env:
+          KEY_CONFIG: ${{ runner.temp }}/ssh_config
+        run: |
+          # 部署成功后才清理：保留 blog-*:latest 与本次 sha tag（指向同一镜像），
+          # 其余博客镜像 tag 全删并清掉 dangling；清理失败不改变部署结论。
+          for host in redrock txy; do
+            echo "== $host =="
+            ssh -F "$KEY_CONFIG" "$host" "TAG=$TAG bash -s" <<'EOF'
+          set -uo pipefail
+          keep_re="^(blog-(backend|frontend):latest|ghcr\.io/d4wn3r/blog-(backend|frontend):${TAG})$"
+          docker images --format '{{.Repository}}:{{.Tag}}' \
+            | grep -E '(^|/)blog-(backend|frontend):' \
+            | grep -Ev "$keep_re" \
+            | while read -r ref; do
+                if docker rmi "$ref" >/dev/null 2>&1; then
+                  echo "删除 $ref"
+                else
+                  echo "跳过 $ref（仍被引用）"
+                fi
+              done
+          docker image prune -f >/dev/null 2>&1 || true
+          echo "== 剩余 =="
+          docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '(^|/)blog-(backend|frontend):' | sort
+          EOF
+          done
