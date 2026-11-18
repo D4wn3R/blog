@@ -60,6 +60,35 @@ describe('代码块渲染', () => {
   })
 })
 
+describe('图片 alt 悬停提示', () => {
+  const mount = (source: string) => {
+    const host = document.createElement('div')
+    host.innerHTML = renderMarkdown(source)
+    return host
+  }
+
+  it('带 alt 的图片包 .md-img，data-alt 与展示的 alt 一致', () => {
+    const alt = '自己画的板子（其实就是照抄别人的）'
+    const host = mount(`![${alt}](/files/202611/board.webp)`)
+    const wrapper = host.querySelector('.md-img')
+    expect(wrapper?.getAttribute('data-alt')).toBe(alt)
+    expect(wrapper?.querySelector('img')?.getAttribute('alt')).toBe(alt)
+  })
+
+  it('alt 中的引号与尖括号转义，不逃逸 data-alt 属性', () => {
+    const host = mount('![a "b" <c>](/x.png)')
+    const wrapper = host.querySelector('.md-img')
+    expect(wrapper?.getAttribute('data-alt')).toBe('a "b" <c>')
+    expect(host.querySelectorAll('img')).toHaveLength(1)
+  })
+
+  it('alt 为空时不包 wrapper', () => {
+    const out = renderMarkdown('![](/x.png)')
+    expect(out).not.toContain('md-img')
+    expect(out).toContain('<img')
+  })
+})
+
 describe('extractToc 目录提取', () => {
   it('采集 h1/h2/h3 并按层级标记，h4+ 不收', () => {
     const toc = extractToc('# 一级\n\n## 二级\n\n### 三级\n\n#### 四级')

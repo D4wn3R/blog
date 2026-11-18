@@ -91,6 +91,19 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
   return `<div class="md-code-block">${inner}</div>`
 }
 
+// 图片 alt 悬停提示：![alt](src) 的 alt 默认只在加载失败时可见，
+// 这里包一层 .md-img，由 md-content.css 的气泡在 hover 时展示 alt；
+// alt 为空保持原生 <img> 不产生空泡泡
+const defaultImage = md.renderer.rules.image
+md.renderer.rules.image = (tokens, idx, options, env, self) => {
+  const img =
+    defaultImage?.(tokens, idx, options, env, self) ?? self.renderToken(tokens, idx, options)
+  // defaultImage 会把 token.content（原始 alt）清成纯文本写入 alt 属性，取它保证与显示一致
+  const alt = String(tokens[idx].attrGet('alt') ?? '').trim()
+  if (!alt) return img
+  return `<span class="md-img" data-alt="${md.utils.escapeHtml(alt)}">${img}</span>`
+}
+
 // 目录（TOC）：h1/h2/h3 注入稳定 id，并导出目录结构给文章页侧栏
 
 export interface TocItem {
