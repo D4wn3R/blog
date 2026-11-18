@@ -23,8 +23,9 @@ type UploadService struct {
 	put func(ctx context.Context, objectKey, contentType string, data []byte) error
 }
 
-// _maxImageSize 原始图片大小上限 5 MiB（D-upload-size；服务端按真实字节校验，非客户端自报）
-const _maxImageSize = 5 * 1024 * 1024
+// _maxImageSize 原始图片大小上限 10 MiB（D-upload-size；服务端按真实字节校验，
+// 非客户端自报）：手机原图常见 5–8 MiB，上限按入站字节而非转码后体积算
+const _maxImageSize = 10 * 1024 * 1024
 
 // errInvalidImage 图片内容无法解码（损坏/截断/伪装）：由转码分支映射为 400
 var errInvalidImage = errors.New("invalid image")

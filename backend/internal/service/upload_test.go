@@ -128,10 +128,10 @@ func TestUploadRejects(t *testing.T) {
 		t.Fatalf("非图片应 400 不支持的图片内容: %v", err)
 	}
 
-	// 超 5MiB（魔数合法 + 超限填充）
+	// 超 10MiB（魔数合法 + 超限填充）
 	oversize := append(pngRaw, bytes.Repeat([]byte{0}, _maxImageSize)...)
 	_, err = s.Upload(context.Background(), bytes.NewReader(oversize))
-	if se := asServiceErr(t, err); se.HTTPStatus != 400 || se.Code != 40000 || se.Message != "图片大小不能超过 5MiB" {
+	if se := asServiceErr(t, err); se.HTTPStatus != 400 || se.Code != 40000 || se.Message != "图片大小不能超过 10MiB" {
 		t.Fatalf("超限应 400: %v", err)
 	}
 }
