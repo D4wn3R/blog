@@ -47,7 +47,7 @@ func (s *UploadService) Upload(ctx context.Context, src io.Reader) (*UploadDTO, 
 		return nil, errServer(err)
 	}
 	if len(data) > _maxImageSize {
-		return nil, errBadRequest("图片大小不能超过 5MiB")
+		return nil, errBadRequest("图片大小不能超过 10MiB")
 	}
 
 	var contentType, ext string
