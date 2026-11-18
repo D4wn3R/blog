@@ -9,9 +9,9 @@ import (
 	"github.com/D4wn3R/blog/backend/internal/pkg/response"
 )
 
-// _maxUploadBody multipart 请求体上限：5MiB 原图 + multipart 边界字段余量；
+// _maxUploadBody multipart 请求体上限：10MiB 原图 + multipart 边界字段余量；
 // 在解析 multipart 前生效，防止超大 body 先撑爆解析内存
-const _maxUploadBody = 5<<20 + 1<<20
+const _maxUploadBody = 10<<20 + 1<<20
 
 // Upload 图片上传（#U1，admin 组路由 POST /api/uploads 由主线程注册）：
 // multipart 中转，校验/转码/写桶全在服务端，响应 {public_url, object_key}。
