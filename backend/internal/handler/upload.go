@@ -22,7 +22,7 @@ func (h *Handler) Upload(c *gin.Context) {
 	if err != nil {
 		var mbErr *http.MaxBytesError
 		if errors.As(err, &mbErr) {
-			response.BadRequest(c, "图片大小不能超过 5MiB")
+			response.BadRequest(c, "图片大小不能超过 10MiB")
 			return
 		}
 		response.BadRequest(c, "参数错误")
