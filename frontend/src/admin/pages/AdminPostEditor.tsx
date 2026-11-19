@@ -16,6 +16,7 @@ import type { EditorStats } from './editor/types'
 import { Button, LinkButton } from '../components/ui'
 import { applyToolbarAction, countRunes, type ToolbarAction } from './editor/toolbar'
 import { clearDraft, hasRecoverableDraft, loadDraft, saveDraft } from './editor/draft'
+import { bindScrollSync } from './editor/scrollSync'
 import { PublishDrawer } from './editor/PublishDrawer'
 
 // CodeMirror 随编辑器路由 chunk 懒加载（掘金同款为 CodeMirror 系）
@@ -197,6 +198,8 @@ export function AdminPostEditor() {
 
   // —— 预览：防抖渲染 + mermaid 异步补渲染 ——
   const previewRef = useRef<HTMLDivElement>(null)
+  // 预览的真实滚动容器是外层 section，滚动同步要盯它而不是内容 div
+  const previewScrollRef = useRef<HTMLElement>(null)
   useEffect(() => {
     const t = window.setTimeout(() => setPreviewHtml(renderMarkdown(contentMd)), 300)
     return () => window.clearTimeout(t)
@@ -256,6 +259,19 @@ export function AdminPostEditor() {
     view.dispatch(applyToolbarAction(view.state, action))
     view.focus()
   }
+
+  // —— 分屏滚动同步：仅 split 态绑定（edit/preview 短路）；editorReady 覆盖 CM 懒加载就绪，
+  // viewMode 覆盖预览 section 的条件挂载/卸载（切回分屏即重新绑定）。
+  // 预览内容高度变化（防抖重渲染 / mermaid / 图片）由 ResizeObserver 触发按主动侧重算 ——
+  useEffect(() => {
+    const view = cmViewRef.current
+    const preview = previewScrollRef.current
+    if (viewMode !== 'split' || !view || !preview) return
+    const sync = bindScrollSync(view.scrollDOM, preview, {
+      extraTargets: previewRef.current ? [previewRef.current] : [],
+    })
+    return () => sync.dispose()
+  }, [viewMode, editorReady])
 
   // 分类/标签：输入即建（沿用原 #A10/#A13/40900 并发处理）
   const createCategory = async (name: string): Promise<string | null> => {
@@ -555,7 +571,7 @@ export function AdminPostEditor() {
           </Suspense>
         </section>
         {viewMode !== 'edit' && (
-          <section className="min-w-0 flex-1 overflow-y-auto bg-void">
+          <section ref={previewScrollRef} className="min-w-0 flex-1 overflow-y-auto bg-void">
             <div
               ref={previewRef}
               className="md-cyber min-h-full px-6 py-6"
