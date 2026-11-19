@@ -4,7 +4,6 @@
   overflow-wrap: break-word;
 }
 
-
 /* highlight.js 暗色配色（scoped 到 .md-cyber） */
 .md-cyber .hljs-keyword,
 .md-cyber .hljs-selector-tag,
@@ -210,10 +209,16 @@
   margin: 1.1em 0;
   padding-left: 1.6em;
 }
+/* 用原生 ::marker 而非 li::before：松散列表（项间空行）markdown-it 给 li 包 <p>，
+   ::before 是行内内容、<p> 是块级盒子，标记会被挤到独立一行且正文缩进到下一行。
+   ::marker 由列表项自身生成，跟随首块的第一行，与 <p> 包裹与否无关 */
 .md-cyber ul {
-  list-style: none;
+  list-style: disc;
 }
-.md-cyber ul > li::before {
+.md-cyber ol {
+  list-style: decimal;
+}
+.md-cyber ul > li::marker {
   content: '▸ ';
   color: var(--color-neon);
   font-family: var(--font-mono);
@@ -225,11 +230,12 @@
 .md-cyber li {
   margin: 0.45em 0;
 }
-/* 任务列表：方框勾选，贴全站直角语言 */
+/* 任务列表：方框勾选，贴全站直角语言；::marker 的 content 一旦指定就无视 list-style: none，
+   需显式把标记内容清空 */
 .md-cyber .task-list-item {
   list-style: none;
 }
-.md-cyber .task-list-item::before {
+.md-cyber .task-list-item::marker {
   content: none;
 }
 .md-cyber .task-list-item input[type='checkbox'] {
@@ -362,14 +368,10 @@
   display: none;
 }
 .md-cyber .footnotes ol.footnotes-list {
-  list-style: decimal;
   padding-left: 1.6em;
 }
 .md-cyber .footnotes-list li {
   color: var(--color-dim);
-}
-.md-cyber .footnotes-list li::before {
-  content: none;
 }
 .md-cyber .footnote-backref {
   border-bottom: none;
