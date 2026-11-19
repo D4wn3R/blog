@@ -85,6 +85,21 @@ describe('bindScrollSync', () => {
     expect(preview.scrollTop).toBe(400)
   })
 
+  it('程序滚动事件位置偏离期望值时视为用户滚动', () => {
+    const editor = new FakeScroller(1000, 200)
+    const preview = new FakeScroller(1000, 200)
+    bindScrollSync(editor, preview)
+
+    editor.userScroll(400)
+    expect(preview.scrollTop).toBe(400)
+
+    // 平滑动画中间态或被夹取的 scroll 事件：位置与期望不符 → 抢回主动侧
+    preview.scrollTop = 100
+    preview.emit()
+
+    expect(editor.scrollTop).toBe(100) // preview 比例 0.125 回写编辑区
+  })
+
   it('跟随侧不可滚动时跳过，不产生 NaN', () => {
     const editor = new FakeScroller(1000, 200)
     const preview = new FakeScroller(200, 200)
