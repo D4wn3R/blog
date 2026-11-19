@@ -91,17 +91,17 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
   return `<div class="md-code-block">${inner}</div>`
 }
 
-// 图片 alt 悬停提示：![alt](src) 的 alt 默认只在加载失败时可见，
-// 这里包一层 .md-img，由 md-content.css 的气泡在 hover 时展示 alt；
-// alt 为空保持原生 <img> 不产生空泡泡
+// 图片说明：![alt](src) 的 alt 既写进 img.alt，也作为图注渲染到图片下方；
+// img + 图注包进 .md-figure 盒子，点击图片由 MarkdownImagePreview 全屏预览。
+// 图注用 span 而非 figcaption：图片可能出现在段落/链接内，span 保证 HTML 合法
 const defaultImage = md.renderer.rules.image
 md.renderer.rules.image = (tokens, idx, options, env, self) => {
   const img =
     defaultImage?.(tokens, idx, options, env, self) ?? self.renderToken(tokens, idx, options)
-  // defaultImage 会把 token.content（原始 alt）清成纯文本写入 alt 属性，取它保证与显示一致
+  // defaultImage 会把 token.content（原始 alt）算成纯文本写入 alt 属性，取它保证与展示一致
   const alt = String(tokens[idx].attrGet('alt') ?? '').trim()
-  if (!alt) return img
-  return `<span class="md-img" data-alt="${md.utils.escapeHtml(alt)}">${img}</span>`
+  const caption = alt ? `<span class="md-figure-caption">${md.utils.escapeHtml(alt)}</span>` : ''
+  return `<span class="md-figure">${img}${caption}</span>`
 }
 
 // 目录（TOC）：h1/h2/h3 注入稳定 id，并导出目录结构给文章页侧栏
