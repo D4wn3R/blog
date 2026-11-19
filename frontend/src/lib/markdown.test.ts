@@ -60,32 +60,31 @@ describe('代码块渲染', () => {
   })
 })
 
-describe('图片 alt 悬停提示', () => {
+describe('图片图注盒子', () => {
   const mount = (source: string) => {
     const host = document.createElement('div')
     host.innerHTML = renderMarkdown(source)
     return host
   }
 
-  it('带 alt 的图片包 .md-img，data-alt 与展示的 alt 一致', () => {
+  it('alt 渲染为图注，与 img 一起包进 .md-figure', () => {
     const alt = '自己画的板子（其实就是照抄别人的）'
     const host = mount(`![${alt}](/files/202611/board.webp)`)
-    const wrapper = host.querySelector('.md-img')
-    expect(wrapper?.getAttribute('data-alt')).toBe(alt)
-    expect(wrapper?.querySelector('img')?.getAttribute('alt')).toBe(alt)
+    const figure = host.querySelector('.md-figure')
+    expect(figure?.querySelector('img')?.getAttribute('alt')).toBe(alt)
+    expect(figure?.querySelector('.md-figure-caption')?.textContent).toBe(alt)
   })
 
-  it('alt 中的引号与尖括号转义，不逃逸 data-alt 属性', () => {
+  it('alt 中的引号与尖括号转义为图注文本', () => {
     const host = mount('![a "b" <c>](/x.png)')
-    const wrapper = host.querySelector('.md-img')
-    expect(wrapper?.getAttribute('data-alt')).toBe('a "b" <c>')
+    expect(host.querySelector('.md-figure-caption')?.textContent).toBe('a "b" <c>')
     expect(host.querySelectorAll('img')).toHaveLength(1)
   })
 
-  it('alt 为空时不包 wrapper', () => {
-    const out = renderMarkdown('![](/x.png)')
-    expect(out).not.toContain('md-img')
-    expect(out).toContain('<img')
+  it('alt 为空仍包 .md-figure（可点击预览），但不渲染图注', () => {
+    const host = mount('![](/x.png)')
+    expect(host.querySelector('.md-figure img')).not.toBeNull()
+    expect(host.querySelector('.md-figure-caption')).toBeNull()
   })
 })
 

@@ -275,43 +275,34 @@
   max-width: 100%;
   border: 1px solid var(--color-edge);
 }
-/* Markdown 图片 alt 悬停提示（.md-img 由 lib/markdown.ts 注入）：
-   气泡展示 ![alt](src) 里 [] 的文字，配色对齐 PrevNextNav 的 tooltip */
-.md-img {
-  position: relative;
+/* Markdown 图片盒子（.md-figure 由 lib/markdown.ts 注入）：
+   img 与图注（alt）打包成卡片，图注在图片下方居中；点击图片全屏预览 */
+.md-figure {
   display: inline-block;
   max-width: 100%;
-}
-.md-img::after {
-  content: attr(data-alt);
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  z-index: 20;
-  width: max-content;
-  max-width: min(90vw, 32em);
-  padding: 6px 12px;
+  margin: 0.4em 0;
   border: 1px solid var(--color-edge);
-  background: var(--color-panel);
+  background: var(--color-void);
+  vertical-align: top;
+}
+.md-figure > img {
+  display: block;
+  max-width: 100%;
+  border: none;
+  cursor: zoom-in;
+}
+.md-figure-caption {
+  display: block;
+  /* 宽度跟随图片：图注自身不参与撑宽盒子，超长时在图片宽度内换行 */
+  width: 0;
+  min-width: 100%;
+  padding: 8px 14px;
+  border-top: 1px dashed var(--color-edge);
   color: var(--color-dim);
   font-family: var(--font-mono);
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.6;
   text-align: center;
-  transform: translateX(-50%);
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 0.15s ease,
-    visibility 0.15s;
-}
-/* 触屏设备没有 hover，别让 tap 触发后气泡一直挂着 */
-@media (hover: hover) {
-  .md-img:hover::after {
-    opacity: 1;
-    visibility: visible;
-  }
 }
 .md-cyber hr {
   margin: 2.5em 0;

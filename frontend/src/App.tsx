@@ -5,6 +5,7 @@ import { OAuthCallback } from './pages/OAuthCallback'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Footer } from './components/Footer'
 import { Nav } from './components/Nav'
+import { MarkdownImagePreview } from './components/MarkdownImagePreview'
 import { guardStaleChunk } from './lib/chunk'
 
 // 重型路由懒加载：B 端全部页面 + 两端详情页 + C 端内容页；
@@ -204,6 +205,8 @@ export default function App() {
           </Routes>
         </Suspense>
       </ErrorBoundary>
+      {/* markdown 图片点击预览：挂根节点一次，事件委托覆盖全部渲染容器（含 B 端预览） */}
+      <MarkdownImagePreview />
     </>
   )
 }
