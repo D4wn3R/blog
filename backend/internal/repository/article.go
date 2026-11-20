@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"time"
 
@@ -174,10 +175,46 @@ func (r *Repository) AdjacentArticles(ctx context.Context, categoryID, selfID ui
 	return prev, next, nil
 }
 
-// IncrArticleViews 浏览量原子自增（#A2，失败由 service 仅记日志）
-func (r *Repository) IncrArticleViews(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Model(&model.Article{}).Where("id = ?", id).
-		Update("views", gorm.Expr("views + 1")).Error
+// AddArticleViews 批量累加浏览量（详情页异步计数落库）：单条 UPDATE 一次提交，
+// 避免逐篇事务把每次提交都变成一次落盘；已删除文章匹配 0 行，天然忽略
+func (r *Repository) AddArticleViews(ctx context.Context, deltas map[uint64]uint64) error {
+	query, args := addViewsStatement(deltas)
+	if query == "" {
+		return nil
+	}
+	return r.db.WithContext(ctx).Exec(query, args...).Error
+}
+
+// addViewsStatement 生成批量自增语句（纯函数便于单测）：
+// UPDATE articles SET views = views + CASE id WHEN ? THEN ? ... END WHERE id IN (?,...)
+// id 排序保证语句与参数顺序稳定
+func addViewsStatement(deltas map[uint64]uint64) (string, []any) {
+	if len(deltas) == 0 {
+		return "", nil
+	}
+	ids := make([]uint64, 0, len(deltas))
+	for id := range deltas {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+
+	var cases, in strings.Builder
+	args := make([]any, 0, len(ids)*3)
+	cases.WriteString("CASE `id`")
+	for _, id := range ids {
+		cases.WriteString(" WHEN ? THEN ?")
+		args = append(args, id, deltas[id])
+	}
+	cases.WriteString(" ELSE 0 END")
+	for i, id := range ids {
+		if i > 0 {
+			in.WriteString(",")
+		}
+		in.WriteString("?")
+		args = append(args, id)
+	}
+	return "UPDATE `articles` SET `views` = `views` + (" + cases.String() +
+		") WHERE `id` IN (" + in.String() + ")", args
 }
 
 // CreateArticle 事务建文章 + 关联标签；唯一索引冲突分类为业务错误返回（#A6）

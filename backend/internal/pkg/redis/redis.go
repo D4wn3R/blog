@@ -82,6 +82,16 @@ func (c *Client) GetDel(ctx context.Context, key string) *redis.StringCmd {
 	return c.cli.GetDel(ctx, key)
 }
 
+// HIncrBy 哈希字段原子自增（浏览量 pending 计数）
+func (c *Client) HIncrBy(ctx context.Context, key, field string, incr int64) *redis.IntCmd {
+	return c.cli.HIncrBy(ctx, key, field, incr)
+}
+
+// Eval 执行 Lua 脚本（KEYS/ARGV 语义同 go-redis）
+func (c *Client) Eval(ctx context.Context, script string, keys []string, args ...any) *redis.Cmd {
+	return c.cli.Eval(ctx, script, keys, args...)
+}
+
 // Del 透传（详见 go-redis）
 func (c *Client) Del(ctx context.Context, keys ...string) *redis.IntCmd {
 	return c.cli.Del(ctx, keys...)

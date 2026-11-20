@@ -180,6 +180,9 @@ func run(configPath string, migrate bool) error {
 	reg := oauth.NewRegistry(providers...)
 
 	svc := service.New(repo, rdb, mc, reg, cfg)
+	// 浏览量异步冲刷：defer 晚于 rdb/sqlDB 关闭注册（LIFO），Stop 先执行并在退出前落库最后一次
+	viewsFlusher := svc.StartViewsFlusher(0)
+	defer viewsFlusher.Stop()
 	h := handler.New(svc, cfg)
 
 	r := router.New(cfg, h, metricsReg)
