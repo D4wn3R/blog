@@ -289,7 +289,7 @@ func (s *ArticleService) buildListItems(ctx context.Context, rows []repository.A
 }
 
 // GetBySlug C 端文章详情（#A2）：不存在/隐藏/超长一律 404 同口径防探测；
-// 加密文章未解锁时 content_md 输出空串，views 返回本次查询值 +1（自增失败仅记日志）
+// 加密文章未解锁时 content_md 输出空串；views = 落库值 + Redis 未落库增量（计数失败仅记日志）
 func (s *ArticleService) GetBySlug(ctx context.Context, slug, unlockToken string) (*ArticleDetailDTO, error) {
 	if utf8.RuneCountInString(slug) > _slugMaxRunes {
 		return nil, errNotFound("文章不存在")
@@ -311,10 +311,8 @@ func (s *ArticleService) GetBySlug(ctx context.Context, slug, unlockToken string
 		}
 		unlocked = true
 	}
-	if err := s.svc.Repo.IncrArticleViews(ctx, a.ID); err != nil {
-		// 失败仅记日志，不影响响应
-		logctx.From(ctx).Warn("incr article views", "article_id", a.ID, "err", err)
-	}
+	// 浏览量异步计数：只写 Redis 增量，后台批量落库，不占读路径的 MySQL 提交
+	viewsDelta := s.IncrArticleViews(ctx, a.ID)
 	contentMD := ""
 	if unlocked {
 		contentMD = a.ContentMD
@@ -344,7 +342,7 @@ func (s *ArticleService) GetBySlug(ctx context.Context, slug, unlockToken string
 		Pinned:      a.Pinned,
 		Minutes:     int(a.Minutes),
 		PublishedAt: a.PublishedAt,
-		Views:       int64(a.Views) + 1,
+		Views:       int64(a.Views) + viewsDelta,
 		Category:    CategoryDTO{ID: a.CategoryID, Name: categoryName},
 		Tags:        toTagDTOs(a.Tags),
 		Prev:        prev,
